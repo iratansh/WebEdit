@@ -1,0 +1,49 @@
+body {
+  background-color: #242424;
+  margin: 0; 
+  padding: 0; 
+  overflow: hidden;
+}
+
+.main {
+  text-align: center;
+  margin: 50px;
+}
+
+.header {
+  font-size: 2em;
+  color: white;
+}
+
+.text-container {
+  text-align: center;
+  margin: 20px;
+}
+
+.text {
+  font-size: 1.5em;
+  color: white;
+}
+
+.button-container {
+  margin: 20px;
+}
+
+.button {
+  background-color: #242424;
+  color: white;
+  border: 1px solid white;
+  padding: 10px 20px;
+  margin: 10px;
+  cursor: pointer;
+}
+
+.button:hover {
+  background-color: white;
+  color: #242424;
+}
+
+.button:active {
+  background-color: #ddd;
+  color: #242424;
+}
