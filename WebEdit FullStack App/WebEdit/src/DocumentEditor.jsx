@@ -1,7 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import NestedNavbar from "./NestedNavbar";
 import HelpMenu from "./HelpMenu";
-import NavigationBar from "./Navbar"; 
+import NavigationBar from "./Navbar";
 import "./DocumentEditor.css";
 
 export default function GoogleDoc() {
@@ -12,7 +12,7 @@ export default function GoogleDoc() {
     highlight: false,
     fontColor: false,
   });
-  const [uploadedImage, setUploadedImage] = useState(null); 
+  const [uploadedImage, setUploadedImage] = useState(null);
   const [docTitle, setDocTitle] = useState("Untitled Document");
   const contentEditableRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -20,7 +20,55 @@ export default function GoogleDoc() {
   const [imageDimensions, setImageDimensions] = useState({
     width: 0,
     height: 0,
-  }); // State to manage image dimensions
+  });
+
+  useEffect(() => {
+    const handleTabPress = (event) => {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        if (
+          contentEditableRef.current &&
+          contentEditableRef.current.contains(document.activeElement)
+        ) {
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const currentNode = range.startContainer;
+            const startOffset = range.startOffset;
+            let wordBoundary = null;
+            for (let i = startOffset; i < currentNode.length; i++) {
+              if (currentNode.textContent[i] === " ") {
+                wordBoundary = i + 1;
+                break;
+              }
+            }
+
+            if (wordBoundary !== null) {
+              range.setStart(currentNode, wordBoundary);
+              range.collapse(true); 
+            } else {
+              const tabTextNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0\u00A0"); 
+              range.insertNode(tabTextNode);
+              range.setStartAfter(tabTextNode);
+              range.collapse(true); 
+            }
+
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        }
+      }
+    };
+
+    contentEditableRef.current.addEventListener("keydown", handleTabPress);
+
+    return () => {
+      contentEditableRef.current.removeEventListener(
+        "keydown",
+        handleTabPress
+      );
+    };
+  }, []);
 
   const applyCommand = (command, value = null) => {
     if (contentEditableRef.current) {
@@ -58,7 +106,7 @@ export default function GoogleDoc() {
         const img = document.createElement("img");
         img.src = e.target.result;
         img.style.maxWidth = "100%";
-        setUploadedImage(img); 
+        setUploadedImage(img);
         setShowResizeDialog(true);
       };
       reader.readAsDataURL(file);
@@ -71,30 +119,19 @@ export default function GoogleDoc() {
       uploadedImage.style.height = `${imageDimensions.height}px`;
       applyCommand("insertHTML", uploadedImage.outerHTML);
     }
-    setShowResizeDialog(false); 
-    setUploadedImage(null); 
-    setImageDimensions({ width: 0, height: 0 }); 
+    setShowResizeDialog(false);
+    setUploadedImage(null);
+    setImageDimensions({ width: 0, height: 0 });
   };
 
   const handleSettingsClick = () => {
-    <Model>
-      <Model.Header>
-        <Model.Title>Settings</Model.Title>
-      </Model.Header>
-      <Model.Body>
-        <p>Settings go here...</p>
-      </Model.Body>
-      <Model.Footer>
-        <Button variant="secondary">Close</Button>
-        <Button variant="primary">Save changes</Button>
-      </Model.Footer>
-    </Model>
+    // Implement settings functionality
   };
 
   const handleCancelResize = () => {
-    setShowResizeDialog(false); 
-    setUploadedImage(null); 
-    setImageDimensions({ width: 0, height: 0 }); 
+    setShowResizeDialog(false);
+    setUploadedImage(null);
+    setImageDimensions({ width: 0, height: 0 });
   };
 
   const handleDimensionChange = (event) => {
@@ -126,8 +163,8 @@ export default function GoogleDoc() {
   };
 
   const handleSaveAsPDF = () => {
-    const element = document.createElement("a");
     const content = contentEditableRef.current.innerHTML;
+    const element = document.createElement("a");
     const blob = new Blob([content], { type: "application/pdf" });
     element.href = URL.createObjectURL(blob);
     element.download = "document.pdf";
@@ -194,9 +231,28 @@ export default function GoogleDoc() {
     fileInputRef.current.click();
   };
 
+  const printRef = useRef(null);
+  const GoogleDocRef = useRef(null);
+  const DocumentContent = useRef(null);
+  const [changeToDarkMode, setChangeToDarkMode] = useState(false);
+
+  const handlePrint = () => {
+    if (printRef.current) {
+      printRef.current.handlePrint();
+    }
+  };
+
+  useEffect(() => {
+    if (changeToDarkMode) {
+      contentEditableRef.current.style.color = "white";
+    } else {
+      contentEditableRef.current.style.color = "black";
+    }
+  }, [changeToDarkMode]);
+
   return (
     <>
-      <div className="google-doc">
+      <div className="google-doc" ref={GoogleDocRef}>
         <NestedNavbar
           onHelpClick={handleHelpClick}
           onFontChange={handleFontChange}
@@ -209,15 +265,23 @@ export default function GoogleDoc() {
           onNumberedListClick={handleNumberedListClick}
           onZoomInClick={handleZoomInClick}
           onZoomOutClick={handleZoomOutClick}
+          onPrint={handlePrint}
           activeStyles={activeStyles}
+          contentEditableRef={contentEditableRef}
+          printRef={printRef}
         />
+
         <NavigationBar
           docTitle={docTitle}
+          contentEditableRef={contentEditableRef}
+          DocumentContent={DocumentContent}
+          GoogleDocRef={GoogleDocRef}
+          setChangeToDarkMode={setChangeToDarkMode}
           onTitleChange={handleTitleChange}
           onNewDocument={handleNewDocument}
           onUploadClick={handleUploadClick}
           onEmailClick={handleEmail}
-          onPrintClick={() => window.print()}
+          onPrintClick={handlePrint}
           onSaveAsPDF={handleSaveAsPDF}
           onSaveAsCSV={handleSaveAsCSV}
           onUndo={() => document.execCommand("undo")}
@@ -260,12 +324,33 @@ export default function GoogleDoc() {
           onZoomInClick={handleZoomInClick}
           onZoomOutClick={handleZoomOutClick}
         />
-        <div
-          contentEditable="true"
-          className="document-content"
-          ref={contentEditableRef}
-        >
-          Start writing your document here...
+        <div className="document-content" ref={DocumentContent}>
+          <div
+            ref={contentEditableRef}
+            contentEditable
+            className="content-to-print"
+            style={{
+              padding: "20px",
+              color: changeToDarkMode === "true" ? "white" : "black",
+              backgroundColor: "none",
+              overflow: "auto",
+              fontSize: "16px",
+              fontFamily: "Arial, sans-serif",
+              textAlign: "left",
+              top: "80px",
+              outline: "none",
+              height: "100%",
+            }}
+            onPaste={(event) => {
+              event.preventDefault();
+              const text = (event.clipboardData || window.clipboardData)
+                .getData("text/plain")
+                .replace(/\n/g, "<br />");
+              document.execCommand("insertHTML", false, text);
+            }}
+          >
+            Start writing your document here...
+          </div>
         </div>
         {showHelp && <HelpMenu handleContinue={handleHelpMenuClose} />}
         <input
@@ -308,4 +393,5 @@ export default function GoogleDoc() {
     </>
   );
 }
+
 
