@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "react-bootstrap/Navbar";
 import Nav from "react-bootstrap/Nav";
 import NavDropdown from "react-bootstrap/NavDropdown";
@@ -30,12 +30,10 @@ import {
   FaArrowsAlt,
   FaFilePdf,
   FaFileCsv,
-  FaTag,
   FaCog,
   FaQuestionCircle,
-  FaSearchPlus,
-  FaSearchMinus,
 } from "react-icons/fa";
+import Settings from "./Settings";
 
 export default function NavigationBar({
   docTitle,
@@ -68,13 +66,60 @@ export default function NavigationBar({
   onFullScreenClick,
   onSettingsClick,
   onHelpClick,
+  GoogleDocRef,
+  ContentEditableRef,
+  DocumentContent,
+  setChangeToDarkMode,
 }) {
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    autoComplete: true,
+    darkMode: false,
+  });
+
+  useEffect(() => {
+    applyDarkModeStyles();
+  }, [settings.darkMode, DocumentContent, GoogleDocRef, ContentEditableRef]);
+
+  const applyDarkModeStyles = () => {
+    if (DocumentContent && DocumentContent.current) {
+      DocumentContent.current.style.backgroundColor = "inherit";
+      DocumentContent.current.style.color = "inherit";
+    }
+
+    if (GoogleDocRef && GoogleDocRef.current) {
+      GoogleDocRef.current.style.backgroundColor = "inherit";
+      GoogleDocRef.current.style.color = "inherit";
+    }
+
+    if (settings.darkMode) {
+      DocumentContent.current.style.backgroundColor = "#333";
+      GoogleDocRef.current.style.backgroundColor = "#222";
+      setChangeToDarkMode(true)
+    } else {
+      DocumentContent.current.style.backgroundColor = "#fff";
+      GoogleDocRef.current.style.backgroundColor = "#f1f3f4";
+      setChangeToDarkMode(false)
+    }
+  };
+
+  const handleToggleDarkMode = () => {
+    setSettings((prevSettings) => ({
+      ...prevSettings,
+      darkMode: !prevSettings.darkMode,
+    }));
+  };
+
+  const handleOpenSettings = () => setShowSettings(true);
+  const handleCloseSettings = () => setShowSettings(false);
+
   return (
     <>
       <Navbar
         fixed="top"
         style={{
           backgroundColor: "white",
+          color: "black",
           padding: "10px 20px",
           display: "flex",
           justifyContent: "space-between",
@@ -89,7 +134,7 @@ export default function NavigationBar({
             style={{ width: "300px", marginRight: "20px" }}
           />
         </Form>
-        <Nav style={{ marginRight: "700px" }}>
+        <Nav>
           <NavDropdown title="File" id="file-dropdown">
             <NavDropdown.Item onClick={onNewDocument}>
               <FaFileAlt style={{ marginRight: "10px" }} />
@@ -211,8 +256,8 @@ export default function NavigationBar({
             </NavDropdown.Item>
           </NavDropdown>
           <NavDropdown title="Tools" id="tools-dropdown">
-            <NavDropdown.Item onClick={onSettingsClick}>
-              <FaCog style={{ marginRight: "10px" }}/>
+            <NavDropdown.Item onClick={handleOpenSettings}>
+              <FaCog style={{ marginRight: "10px" }} />
               Settings
             </NavDropdown.Item>
             <NavDropdown.Item onClick={onHelpClick}>
@@ -222,6 +267,12 @@ export default function NavigationBar({
           </NavDropdown>
         </Nav>
       </Navbar>
+      <Settings
+        show={showSettings}
+        handleClose={handleCloseSettings}
+        settings={settings}
+        onChange={handleToggleDarkMode}
+      />
     </>
   );
 }
