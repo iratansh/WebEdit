@@ -3,6 +3,8 @@ import NestedNavbar from "./NestedNavbar";
 import HelpMenu from "./HelpMenu";
 import NavigationBar from "./Navbar";
 import "./DocumentEditor.css";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 export default function GoogleDoc() {
   const [showHelp, setShowHelp] = useState(false);
@@ -13,7 +15,7 @@ export default function GoogleDoc() {
     fontColor: false,
   });
   const [uploadedImage, setUploadedImage] = useState(null);
-  const [docTitle, setDocTitle] = useState("Untitled Document");
+  const [docTitle, setDocTitle] = useState("");
   const contentEditableRef = useRef(null);
   const fileInputRef = useRef(null);
   const [showResizeDialog, setShowResizeDialog] = useState(false);
@@ -21,6 +23,8 @@ export default function GoogleDoc() {
     width: 0,
     height: 0,
   });
+
+  const [lastTabPosition, setLastTabPosition] = useState(null);
 
   useEffect(() => {
     const handleTabPress = (event) => {
@@ -35,22 +39,31 @@ export default function GoogleDoc() {
             const range = selection.getRangeAt(0);
             const currentNode = range.startContainer;
             const startOffset = range.startOffset;
-            let wordBoundary = null;
-            for (let i = startOffset; i < currentNode.length; i++) {
-              if (currentNode.textContent[i] === " ") {
-                wordBoundary = i + 1;
-                break;
-              }
-            }
 
-            if (wordBoundary !== null) {
-              range.setStart(currentNode, wordBoundary);
-              range.collapse(true); 
+            if (currentNode.nodeType === Node.TEXT_NODE) {
+              const textContent = currentNode.textContent;
+              let wordBoundary = textContent.indexOf(" ", startOffset);
+
+              if (wordBoundary === -1) {
+                wordBoundary = textContent.length;
+              }
+
+              const beforeCursor = textContent.slice(0, startOffset);
+              const afterCursor = textContent.slice(startOffset);
+
+              currentNode.textContent = beforeCursor + "\u00A0\u00A0\u00A0\u00A0" + afterCursor;
+
+              range.setStart(currentNode, startOffset + 4);
+              range.setEnd(currentNode, startOffset + 4);
+
+              setLastTabPosition({ node: currentNode, startOffset, length: 4 });
             } else {
-              const tabTextNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0\u00A0"); 
+              const tabTextNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0"); // 4
               range.insertNode(tabTextNode);
               range.setStartAfter(tabTextNode);
-              range.collapse(true); 
+              range.collapse(true);
+
+              setLastTabPosition({ node: tabTextNode, startOffset: 0, length: 4 });
             }
 
             selection.removeAllRanges();
@@ -60,15 +73,58 @@ export default function GoogleDoc() {
       }
     };
 
-    contentEditableRef.current.addEventListener("keydown", handleTabPress);
+    const handleUndoPress = (event) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      if ((isMac && event.metaKey && event.key === 'z') || (!isMac && event.ctrlKey && event.key === 'z')) {
+        event.preventDefault();
+        document.execCommand("undo");
+      }
+    };
+
+    const handleBackspacePress = (event) => {
+      if (event.key === "Backspace" || event.key === "Delete") {
+        if (lastTabPosition) {
+          const { node, startOffset, length } = lastTabPosition;
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            if (range.startContainer === node && range.startOffset === startOffset + length) {
+              event.preventDefault();
+
+              const textContent = node.textContent;
+              const beforeTab = textContent.slice(0, startOffset);
+              const afterTab = textContent.slice(startOffset + length);
+
+              node.textContent = beforeTab + afterTab;
+
+              range.setStart(node, startOffset);
+              range.setEnd(node, startOffset);
+
+              setLastTabPosition(null);
+
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+          }
+        }
+      }
+    };
+
+    const contentEditable = contentEditableRef.current;
+    if (contentEditable) {
+      contentEditable.addEventListener("keydown", handleTabPress);
+    }
+    document.addEventListener("keydown", handleUndoPress);
+    document.addEventListener("keydown", handleBackspacePress);
 
     return () => {
-      contentEditableRef.current.removeEventListener(
-        "keydown",
-        handleTabPress
-      );
+      if (contentEditable) {
+        contentEditable.removeEventListener("keydown", handleTabPress);
+      }
+      document.removeEventListener("keydown", handleUndoPress);
+      document.removeEventListener("keydown", handleBackspacePress);
     };
-  }, []);
+  }, [lastTabPosition]);
 
   const applyCommand = (command, value = null) => {
     if (contentEditableRef.current) {
@@ -124,9 +180,6 @@ export default function GoogleDoc() {
     setImageDimensions({ width: 0, height: 0 });
   };
 
-  const handleSettingsClick = () => {
-    // Implement settings functionality
-  };
 
   const handleCancelResize = () => {
     setShowResizeDialog(false);
@@ -163,14 +216,14 @@ export default function GoogleDoc() {
   };
 
   const handleSaveAsPDF = () => {
-    const content = contentEditableRef.current.innerHTML;
-    const element = document.createElement("a");
-    const blob = new Blob([content], { type: "application/pdf" });
-    element.href = URL.createObjectURL(blob);
-    element.download = "document.pdf";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    html2canvas(contentEditableRef.current).then((canvas) => {
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210; 
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+      pdf.save(`${docTitle}.pdf`);
+    });
   };
 
   const handleSaveAsCSV = () => {
@@ -179,7 +232,7 @@ export default function GoogleDoc() {
       "data:text/csv;charset=utf-8," + content.replace(/\n/g, ",");
     const element = document.createElement("a");
     element.setAttribute("href", encodeURI(csvContent));
-    element.setAttribute("download", "document.csv");
+    element.setAttribute("download", `${docTitle}.csv`);
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -319,7 +372,6 @@ export default function GoogleDoc() {
               document.documentElement.msRequestFullscreen();
             }
           }}
-          onSettingsClick={handleSettingsClick}
           onHelpClick={handleHelpClick}
           onZoomInClick={handleZoomInClick}
           onZoomOutClick={handleZoomOutClick}
