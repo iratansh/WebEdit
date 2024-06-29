@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import NavigationBar from './Navbar'
 import AppLaunch from './AppLaunch'
 
 function App() {
@@ -13,3 +11,4 @@ function App() {
 }
 
 export default App
+
