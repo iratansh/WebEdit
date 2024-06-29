@@ -254,7 +254,7 @@ const NestedNavbar = ({ handlePrint, printRef, contentEditableRef }) => {
                 href="#print"
                 onMouseEnter={() => setActiveTooltip("print")}
                 onMouseLeave={hideAllTooltips}
-                onClick={handlePrint}
+                onClick={handlePrint} 
               >
                 <ReactToPrint
                   trigger={() => (
