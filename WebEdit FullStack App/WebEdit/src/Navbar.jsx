@@ -64,7 +64,6 @@ export default function NavigationBar({
   onInsertCodeBlockClick,
   onInsertCommentClick,
   onFullScreenClick,
-  onSettingsClick,
   onHelpClick,
   GoogleDocRef,
   ContentEditableRef,
@@ -132,6 +131,7 @@ export default function NavigationBar({
             value={docTitle}
             onChange={onTitleChange}
             style={{ width: "300px", marginRight: "20px" }}
+            placeholder="Untitled Document"
           />
         </Form>
         <Nav>
@@ -255,7 +255,7 @@ export default function NavigationBar({
               Outdent
             </NavDropdown.Item>
           </NavDropdown>
-          <NavDropdown title="Tools" id="tools-dropdown">
+          <NavDropdown title="Tools" id="tools-dropdown" style={{marginRight:"100px"}}>
             <NavDropdown.Item onClick={handleOpenSettings}>
               <FaCog style={{ marginRight: "10px" }} />
               Settings
