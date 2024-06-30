@@ -1,6 +1,7 @@
 # WebEdit
 
-<img width="1512" alt="image" src="https://github.com/iratansh/Python/assets/151393106/d1706039-8359-48d7-a30b-995cb05673ed">
+<img width="1512" alt="image" src="https://github.com/iratansh/WebEdit/assets/151393106/becf5aee-425d-40c1-aba3-13d344734b67">
+
 
 
 
