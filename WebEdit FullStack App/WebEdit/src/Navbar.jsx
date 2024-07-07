@@ -7,7 +7,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import {
   FaUpload,
   FaFileAlt,
-  FaPrint,
   FaEnvelope,
   FaUndo,
   FaRedo,
@@ -15,7 +14,6 @@ import {
   FaStrikethrough,
   FaSubscript,
   FaSuperscript,
-  FaFileImage,
   FaAlignLeft,
   FaAlignCenter,
   FaAlignRight,
@@ -41,7 +39,6 @@ export default function NavigationBar({
   onNewDocument,
   onUploadClick,
   onEmailClick,
-  onPrintClick,
   onSaveAsPDF,
   onSaveAsCSV,
   onUndo,
@@ -51,7 +48,7 @@ export default function NavigationBar({
   onStrikethroughClick,
   onSubscriptClick,
   onSuperscriptClick,
-  onInsertImageClick,
+
   onAlignLeftClick,
   onAlignCenterClick,
   onAlignRightClick,
@@ -138,7 +135,7 @@ export default function NavigationBar({
           <NavDropdown title="File" id="file-dropdown">
             <NavDropdown.Item onClick={onNewDocument}>
               <FaFileAlt style={{ marginRight: "10px" }} />
-              New
+              Clear
             </NavDropdown.Item>
             <NavDropdown.Item onClick={onUploadClick}>
               <FaUpload style={{ marginRight: "10px" }} />
@@ -147,10 +144,6 @@ export default function NavigationBar({
             <NavDropdown.Item onClick={onEmailClick}>
               <FaEnvelope style={{ marginRight: "10px" }} />
               Email
-            </NavDropdown.Item>
-            <NavDropdown.Item onClick={onPrintClick}>
-              <FaPrint style={{ marginRight: "10px" }} />
-              Print
             </NavDropdown.Item>
             <NavDropdown.Divider />
             <NavDropdown.Item onClick={onSaveAsPDF}>
@@ -195,17 +188,12 @@ export default function NavigationBar({
             </NavDropdown.Item>
           </NavDropdown>
           <NavDropdown title="View" id="view-dropdown">
-            <NavDropdown.Divider />
             <NavDropdown.Item onClick={onFullScreenClick}>
               <FaArrowsAlt style={{ marginRight: "10px" }} />
               Full Screen
             </NavDropdown.Item>
           </NavDropdown>
           <NavDropdown title="Insert" id="insert-dropdown">
-            <NavDropdown.Item onClick={onInsertImageClick}>
-              <FaFileImage style={{ marginRight: "10px" }} />
-              Image
-            </NavDropdown.Item>
             <NavDropdown.Item onClick={onInsertLinkClick}>
               <FaLink style={{ marginRight: "10px" }} />
               Link
