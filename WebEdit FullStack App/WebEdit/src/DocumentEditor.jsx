@@ -3,7 +3,7 @@ import NestedNavbar from "./NestedNavbar";
 import HelpMenu from "./HelpMenu";
 import NavigationBar from "./Navbar";
 import "./DocumentEditor.css";
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
 export default function GoogleDoc() {
@@ -51,21 +51,25 @@ export default function GoogleDoc() {
               const beforeCursor = textContent.slice(0, startOffset);
               const afterCursor = textContent.slice(startOffset);
 
-              currentNode.textContent = beforeCursor + "\u00A0\u00A0\u00A0\u00A0" + afterCursor;
+              currentNode.textContent =
+                beforeCursor + "\u00A0\u00A0\u00A0\u00A0" + afterCursor;
 
               range.setStart(currentNode, startOffset + 4);
               range.setEnd(currentNode, startOffset + 4);
-
               setLastTabPosition({ node: currentNode, startOffset, length: 4 });
             } else {
-              const tabTextNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0"); // 4
+              const tabTextNode = document.createTextNode(
+                "\u00A0\u00A0\u00A0\u00A0"
+              ); 
               range.insertNode(tabTextNode);
               range.setStartAfter(tabTextNode);
-              range.collapse(true);
-
-              setLastTabPosition({ node: tabTextNode, startOffset: 0, length: 4 });
+              range.collapse(true); 
+              setLastTabPosition({
+                node: tabTextNode,
+                startOffset: 0,
+                length: 4,
+              });
             }
-
             selection.removeAllRanges();
             selection.addRange(range);
           }
@@ -74,11 +78,111 @@ export default function GoogleDoc() {
     };
 
     const handleUndoPress = (event) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      if ((isMac && event.metaKey && event.key === 'z') || (!isMac && event.ctrlKey && event.key === 'z')) {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      if (
+        (isMac && event.metaKey && event.key === "z") ||
+        (!isMac && event.ctrlKey && event.key === "z")
+      ) {
         event.preventDefault();
         document.execCommand("undo");
       }
+    };
+
+    const handleEnterPress = (event) => {
+      if (event.key === "Enter") {
+        const maxHeight = 1024;
+        const contentDiv = contentEditableRef.current;
+        const tempSpan = document.createElement("span");
+        tempSpan.appendChild(document.createTextNode("\u200B"));
+        const selection = window.getSelection();
+        const range = selection.getRangeAt(0);
+        range.insertNode(tempSpan);
+        const tempRect = tempSpan.getBoundingClientRect();
+        const contentRect = contentDiv.getBoundingClientRect();
+        const cursorY =
+          tempRect.bottom - contentRect.top + contentDiv.scrollTop;
+
+        tempSpan.remove();
+
+        if (cursorY >= maxHeight) {
+          event.preventDefault();
+        } else {
+          setTimeout(() => {
+            if (contentDiv.scrollHeight > maxHeight) {
+              const lastChild = contentDiv.lastChild;
+              if (
+                lastChild.nodeType === Node.ELEMENT_NODE &&
+                lastChild.tagName === "BR"
+              ) {
+                contentDiv.removeChild(lastChild);
+              }
+            }
+          }, 0);
+        }
+      }
+    };
+
+    const handleClickOutside = (event) => {
+      if (
+        !contentEditableRef.current.contains(event.target) &&
+        !DocumentContent.current.contains(event.target)
+      ) {
+        document
+          .querySelectorAll(".comment-box, .comment-area")
+          .forEach((element) => {
+            element.classList.remove("popped");
+          });
+      }
+    };
+    const trimContent = (div) => {
+      const maxHeight = 1024; 
+      const originalContent = div.innerHTML;
+      const words = originalContent.split("");
+      let newContent = "";
+      let trimmedContent = "";
+
+      for (let i = 0; i < words.length; i++) {
+        newContent += words[i];
+        div.innerHTML = newContent;
+
+        if (div.scrollHeight > maxHeight) {
+          trimmedContent = newContent.slice(0, -1);
+          break;
+        } else {
+          trimmedContent = newContent;
+        }
+      }
+
+      div.innerHTML = trimmedContent;
+      const selection = window.getSelection();
+      const newRange = document.createRange();
+      if (div.childNodes.length > 0) {
+        const lastChild = div.childNodes[div.childNodes.length - 1];
+        if (lastChild.nodeType === Node.TEXT_NODE) {
+          newRange.setStart(lastChild, lastChild.textContent.length);
+        } else {
+          newRange.setStartAfter(lastChild);
+        }
+      } else {
+        newRange.setStart(div, 0);
+      }
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    };
+    const handlePaste = (event) => {
+      event.preventDefault();
+      const text = (event.clipboardData || window.clipboardData).getData(
+        "text/plain"
+      );
+      document.execCommand("insertText", false, text);
+
+      setTimeout(() => {
+        const contentDiv = contentEditableRef.current;
+        if (contentDiv.scrollHeight > 1024) {
+          trimContent(contentDiv);
+        }
+      }, 0);
     };
 
     const handleBackspacePress = (event) => {
@@ -88,7 +192,10 @@ export default function GoogleDoc() {
           const selection = window.getSelection();
           if (selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
-            if (range.startContainer === node && range.startOffset === startOffset + length) {
+            if (
+              range.startContainer === node &&
+              range.startOffset === startOffset + length
+            ) {
               event.preventDefault();
 
               const textContent = node.textContent;
@@ -101,7 +208,6 @@ export default function GoogleDoc() {
               range.setEnd(node, startOffset);
 
               setLastTabPosition(null);
-
               selection.removeAllRanges();
               selection.addRange(range);
             }
@@ -113,9 +219,12 @@ export default function GoogleDoc() {
     const contentEditable = contentEditableRef.current;
     if (contentEditable) {
       contentEditable.addEventListener("keydown", handleTabPress);
+      contentEditable.addEventListener("keydown", handleEnterPress);
+      contentEditable.addEventListener("paste", handlePaste);
     }
     document.addEventListener("keydown", handleUndoPress);
     document.addEventListener("keydown", handleBackspacePress);
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
       if (contentEditable) {
@@ -123,6 +232,8 @@ export default function GoogleDoc() {
       }
       document.removeEventListener("keydown", handleUndoPress);
       document.removeEventListener("keydown", handleBackspacePress);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("paste", handlePaste);
     };
   }, [lastTabPosition]);
 
@@ -163,7 +274,7 @@ export default function GoogleDoc() {
         img.src = e.target.result;
         img.style.maxWidth = "100%";
         setUploadedImage(img);
-        setShowResizeDialog(true);
+        setShowModal(true);
       };
       reader.readAsDataURL(file);
     }
@@ -173,13 +284,13 @@ export default function GoogleDoc() {
     if (uploadedImage) {
       uploadedImage.style.width = `${imageDimensions.width}px`;
       uploadedImage.style.height = `${imageDimensions.height}px`;
-      applyCommand("insertHTML", uploadedImage.outerHTML);
+      const contentDiv = contentEditableRef.current;
+      contentDiv.appendChild(uploadedImage);
     }
-    setShowResizeDialog(false);
+    setShowModal(false);
     setUploadedImage(null);
     setImageDimensions({ width: 0, height: 0 });
   };
-
 
   const handleCancelResize = () => {
     setShowResizeDialog(false);
@@ -216,14 +327,21 @@ export default function GoogleDoc() {
   };
 
   const handleSaveAsPDF = () => {
+    const trackingDarkMode = changeToDarkMode;
+    if (trackingDarkMode) {
+      setChangeToDarkMode(false);
+    }
     html2canvas(contentEditableRef.current).then((canvas) => {
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
-      const imgWidth = 210; 
+      const imgWidth = 210;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
       pdf.save(`${docTitle}.pdf`);
     });
+    if (trackingDarkMode) {
+      setChangeToDarkMode(true);
+    }
   };
 
   const handleSaveAsCSV = () => {
@@ -246,29 +364,58 @@ export default function GoogleDoc() {
   };
 
   const handleInsertTable = () => {
-    const rows = prompt("Enter number of rows:");
-    const cols = prompt("Enter number of columns:");
-    if (rows > 0 && cols > 0) {
-      let table = "<table border='1'>";
-      for (let i = 0; i < rows; i++) {
-        table += "<tr>";
-        for (let j = 0; j < cols; j++) {
-          table += "<td>&nbsp;</td>";
-        }
-        table += "</tr>";
-      }
-      table += "</table>";
-      document.execCommand("insertHTML", false, table);
-    }
-  };
+    const maxHeight = 1024; 
+    const maxWidth = 800; 
+    const rows = parseInt(prompt("Enter number of rows:"), 10);
+    const cols = parseInt(prompt("Enter number of columns:"), 10);
 
-  const handleInsertComment = () => {
-    const comment = prompt("Enter the comment:");
-    if (comment) {
-      const span = document.createElement("span");
-      span.style.backgroundColor = "yellow";
-      span.textContent = comment;
-      document.execCommand("insertHTML", false, span.outerHTML);
+    if (isNaN(rows) || rows <= 0 || isNaN(cols) || cols <= 0) {
+      alert("Please enter valid positive numbers for rows and columns.");
+      return;
+    }
+
+    const estimatedRowHeight = 25; 
+    const estimatedColWidth = 100;
+    const tableHeight = rows * estimatedRowHeight;
+    const tableWidth = cols * estimatedColWidth;
+    
+    if (tableHeight > maxHeight || tableWidth > maxWidth) {
+      alert(
+        `The table dimensions exceed the maximum allowed size.\nMax Height: ${maxHeight}px, Max Width: ${maxWidth}px.\nCurrent Height: ${tableHeight}px, Current Width: ${tableWidth}px.`
+      );
+      return;
+    }
+
+    let table =
+      "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+    for (let i = 0; i < rows; i++) {
+      table += "<tr>";
+      for (let j = 0; j < cols; j++) {
+        table +=
+          "<td style='padding: 8px; border: 1px solid #ccc;'>&nbsp;</td>";
+      }
+      table += "</tr>";
+    }
+    table += "</table>";
+
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = table;
+      const tableNode = tempDiv.firstChild;
+      range.insertNode(tableNode);
+
+      range.setStartAfter(tableNode);
+      range.setEndAfter(tableNode);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      contentEditableRef.current.focus();
+    } else {
+      alert("Please place the cursor where you want to insert the table.");
     }
   };
 
@@ -288,11 +435,92 @@ export default function GoogleDoc() {
   const GoogleDocRef = useRef(null);
   const DocumentContent = useRef(null);
   const [changeToDarkMode, setChangeToDarkMode] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+
+  const handleInsertComment = () => {
+    if (comments.length >= 5) {
+      alert("Maximum number of comments reached.");
+      return;
+    }
+
+    const commentText = prompt("Enter your comment:");
+    if (commentText) {
+      const selection = window.getSelection();
+      if (selection.rangeCount === 0) {
+        alert("Please select some text to comment on.");
+        return;
+      }
+
+      const commentId = Date.now();
+      const date = new Date();
+      const formattedDate = date.toLocaleString();
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const contentEditableRect =
+        contentEditableRef.current.getBoundingClientRect();
+      const commentPosition = {
+        top: rect.top - contentEditableRect.top,
+        left: rect.left - contentEditableRect.left,
+      };
+
+      setComments((prevComments) => [
+        ...prevComments,
+        {
+          id: commentId,
+          text: commentText,
+          position: commentPosition,
+          date: formattedDate,
+        },
+      ]);
+
+      DocumentContent.current.style.marginRight = "5px";
+    } else {
+      alert("Please enter a comment.");
+    }
+  };
+
+  const handleEditComment = (id) => {
+    const commentText = prompt("Edit your comment:");
+    if (commentText) {
+      setComments((prevComments) =>
+        prevComments.map((comment) =>
+          comment.id === id ? { ...comment, text: commentText } : comment
+        )
+      );
+    }
+  };
+
+  const handleDeleteComment = (id) => {
+    setComments((prevComments) => {
+      const updatedComments = prevComments.filter(
+        (comment) => comment.id !== id
+      );
+
+      if (updatedComments.length === 0) {
+        DocumentContent.current.style.marginRight = "180px";
+      }
+      return updatedComments;
+    });
+  };
+
+  const handleCommentBoxClose = () => {
+    setEditingCommentId(null);
+  };
 
   const handlePrint = () => {
     if (printRef.current) {
       printRef.current.handlePrint();
     }
+  };
+
+  const handleElementClick = (event) => {
+    document
+      .querySelectorAll(".comment-box, .comment-area")
+      .forEach((element) => {
+        element.classList.remove("popped");
+      });
+    event.currentTarget.classList.add("popped");
   };
 
   useEffect(() => {
@@ -301,7 +529,101 @@ export default function GoogleDoc() {
     } else {
       contentEditableRef.current.style.color = "black";
     }
+    updateCodeBlockStyles(changeToDarkMode);
   }, [changeToDarkMode]);
+
+  const updateCodeBlockStyles = (darkMode) => {
+    const codeBlocks = document.querySelectorAll(".code-block");
+    codeBlocks.forEach((block) => {
+      if (darkMode) {
+        block.classList.remove("light-mode");
+        block.classList.add("dark-mode");
+      } else {
+        block.classList.remove("dark-mode");
+        block.classList.add("light-mode");
+      }
+    });
+  };
+
+  const onInsertCodeBlockClick = () => {
+    const darkMode = changeToDarkMode;
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+
+      if (selection.isCollapsed) {
+        const pre = document.createElement("pre");
+        pre.className = darkMode
+          ? "code-block dark-mode"
+          : "code-block light-mode";
+        pre.style.border = "1px solid #ccc";
+        pre.style.borderRadius = "4px";
+        pre.style.padding = "10px";
+        pre.style.whiteSpace = "pre-wrap"; 
+
+        const code = document.createElement("code");
+        pre.appendChild(code);
+        range.insertNode(pre);
+
+        const newRange = document.createRange();
+        newRange.setStart(code, 0);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+
+        contentEditableRef.current.focus();
+      } else {
+        applyCommand("formatBlock", "pre");
+      }
+    }
+  };
+
+  const [currentWord, setCurrentWord] = useState("");
+  const [suggestedWord, setSuggestedWord] = useState("");
+  useEffect(() => {
+    const handleKeyPress = async (event) => {
+      if (event.key === " ") {
+        setCurrentWord("");
+        setSuggestedWord("");
+      } else if (event.key === "Backspace") {
+        setCurrentWord((prev) => prev.slice(0, -1));
+        setSuggestedWord("");
+      } else if (event.key.length === 1 && /^[a-zA-Z]$/.test(event.key)) {
+        const newWord = currentWord + event.key;
+        setCurrentWord(newWord);
+
+        try {
+          const response = await fetch(
+            `http://127.0.0.1:5001/receive_word?word=${newWord}`
+          );
+          if (!response.ok) {
+            console.error("Network response was not ok:", response.statusText);
+            return;
+          }
+
+          const data = await response.json();
+          console.log("Backend response:", data);
+          if (data.finished_word) {
+            const remainingWord = data.finished_word.slice(newWord.length);
+            setSuggestedWord(remainingWord);
+          }
+        } catch (error) {
+          console.error("Fetch error:", error);
+        }
+      } else if (event.key === "q" && suggestedWord) {
+        event.preventDefault();
+        document.execCommand("insertText", false, suggestedWord);
+        setCurrentWord("");
+        setSuggestedWord("");
+      }
+    };
+
+    const div = contentEditableRef.current;
+    div.addEventListener("keydown", handleKeyPress);
+    return () => {
+      div.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [currentWord, suggestedWord]);
 
   return (
     <>
@@ -322,6 +644,7 @@ export default function GoogleDoc() {
           activeStyles={activeStyles}
           contentEditableRef={contentEditableRef}
           printRef={printRef}
+          DocumentContent={DocumentContent}
         />
 
         <NavigationBar
@@ -359,7 +682,7 @@ export default function GoogleDoc() {
           }}
           onUnlinkClick={() => applyCommand("unlink")}
           onInsertTableClick={handleInsertTable}
-          onInsertCodeBlockClick={() => applyCommand("formatBlock", "<pre>")}
+          onInsertCodeBlockClick={onInsertCodeBlockClick}
           onInsertCommentClick={handleInsertComment}
           onFullScreenClick={() => {
             if (document.documentElement.requestFullscreen) {
@@ -376,34 +699,91 @@ export default function GoogleDoc() {
           onZoomInClick={handleZoomInClick}
           onZoomOutClick={handleZoomOutClick}
         />
-        <div className="document-content" ref={DocumentContent}>
-          <div
-            ref={contentEditableRef}
-            contentEditable
-            className="content-to-print"
-            style={{
-              padding: "20px",
-              color: changeToDarkMode === "true" ? "white" : "black",
-              backgroundColor: "none",
-              overflow: "auto",
-              fontSize: "16px",
-              fontFamily: "Arial, sans-serif",
-              textAlign: "left",
-              top: "80px",
-              outline: "none",
-              height: "100%",
-            }}
-            onPaste={(event) => {
-              event.preventDefault();
-              const text = (event.clipboardData || window.clipboardData)
-                .getData("text/plain")
-                .replace(/\n/g, "<br />");
-              document.execCommand("insertHTML", false, text);
-            }}
-          >
-            Start writing your document here...
+
+        <div className="parent-component">
+          <div className="document-content" ref={DocumentContent}>
+            <div
+              ref={contentEditableRef}
+              contentEditable
+              style={{
+                padding: "20px",
+                color: changeToDarkMode === "true" ? "white" : "black",
+                backgroundColor: "none",
+                fontSize: "16px",
+                fontFamily: "Arial, sans-serif",
+                textAlign: "left",
+                top: "80px",
+                outline: "none",
+                height: "1020px",
+                maxHeight: "1020px",
+              }}
+            >
+              <span style={{ color: "gray" }}>{suggestedWord}</span>
+            </div>
+          </div>
+          <div className="comment-section">
+            {comments.map((comment, index) => (
+              <div
+                key={comment.id}
+                className="comment-box"
+                style={{
+                  marginTop: index === 0 ? "60px" : "10px",
+                  border: "1px solid black",
+                  padding: "5px",
+                }}
+                onClick={handleElementClick}
+              >
+                <p style={{ fontSize: "14px" }}>{comment.date}</p>
+                <div className="button-container">
+                  {editingCommentId === comment.id ? (
+                    <>
+                      <textarea
+                        value={comment.text}
+                        onChange={(e) =>
+                          setComments((prevComments) =>
+                            prevComments.map((c) =>
+                              c.id === comment.id
+                                ? { ...c, text: e.target.value }
+                                : c
+                            )
+                          )
+                        }
+                      />
+                      <button
+                        className="comment-buttons"
+                        onClick={handleCommentBoxClose}
+                      >
+                        Close
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="comment-buttons"
+                        onClick={() => handleDeleteComment(comment.id)}
+                      >
+                        ✔
+                      </button>
+                      <button
+                        className="comment-buttons"
+                        onClick={() => handleEditComment(comment.id)}
+                      >
+                        Edit
+                      </button>
+                      <div
+                        className="comment-area"
+                        onClick={handleElementClick}
+                      >
+                        {comment.text}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+
         {showHelp && <HelpMenu handleContinue={handleHelpMenuClose} />}
         <input
           type="file"
