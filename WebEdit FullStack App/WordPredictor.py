@@ -19,9 +19,15 @@ class WordFinisher:
             if not prefix:
                 return None
             predictions = self.trie.search(prefix.lower())
+            if predictions and predictions == prefix:
+                return None
             return predictions[0] if predictions else None
         except Exception as e:
             print(f"Error: An unexpected error occurred during prediction: {e}")
             return None
+
+if __name__ == '__main__':
+    finisher = WordFinisher()
+    print(finisher.predict_words('peo'))
 
     
