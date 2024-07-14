@@ -1,51 +1,187 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Arial', sans-serif;
+  background-color: #f4f4f9;
+  transition: background-color 0.3s;
+}
+
 .app-launch {
-  background-color: #242424;
-  color: white;
-  height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  font-family: Arial, sans-serif;
+  height: 100vh;
+  overflow: hidden;
 }
 
-.main {
+.container {
   text-align: center;
+  background-color: #ffffff;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  padding: 40px;
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+  animation: fadeIn 1s ease-in;
+}
+
+.container:hover {
+  transform: scale(1.02);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
 }
 
 .header {
-  font-size: 2em;
+  font-size: 32px;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.description {
+  font-size: 18px;
+  color: #666;
   margin-bottom: 20px;
 }
 
-.text-container1 {
-  text-align: center;
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.text {
-  font-size: 1.2em;
-  margin-top: 20px;
-}
-
-.button {
-  background-color: #242424;
-  color: white;
-  border: 1px solid white;
-  padding: 10px 20px;
-  margin: 10px;
+.file-input {
+  margin-bottom: 20px;
+  border: 2px solid #007bff;
+  border-radius: 5px;
+  padding: 12px;
+  width: 80%; 
+  font-size: 16px;
+  transition: border-color 0.3s, transform 0.3s;
+  background-color: #f8f9fa;
   cursor: pointer;
 }
 
-.button:hover {
-  background-color: white;
-  color: #242424;
+.file-input:focus {
+  border-color: #0056b3;
+  outline: none;
+  background-color: #ffffff;
+  transform: scale(1.02);
 }
 
-.button:active {
-  background-color: white;
-  color: #242424;
+.file-input::file-selector-button {
+  display: none;
 }
 
-.button-container {
+.file-name {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #007bff;
+}
+
+.continue-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 12px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+
+.continue-button:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+}
+
+.continue-button:active {
+  transform: scale(0.95);
+}
+
+.instruction {
+  font-size: 14px;
+  color: #888;
+  margin-top: 15px;
+  line-height: 1.5;
+}
+
+.footer {
   margin-top: 20px;
+  color: #888;
+  font-size: 14px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 500px) {
+  .header {
+    font-size: 24px;
+  }
+
+  .description {
+    font-size: 16px;
+  }
+
+  .file-input,
+  .continue-button {
+    font-size: 14px;
+  }
+}
+
+.app-launch::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle, rgba(0, 123, 255, 0.1), rgba(255, 255, 255, 0));
+  z-index: -1;
+  animation: pulse 5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.continue-button:focus::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300%;
+  height: 300%;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  animation: ripple 0.6s linear;
+}
+
+@keyframes ripple {
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
 }
