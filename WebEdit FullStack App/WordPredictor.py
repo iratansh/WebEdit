@@ -7,9 +7,14 @@ from Trie import Trie
 class WordFinisher:
     def __init__(self):
         self.trie = Trie()
-        self.trie.batch_insert_from_file() 
 
-    def predict_words(self, prefix):
+    async def initialize(self):
+        """
+        Initializes the WordFinisher with words from a file.
+        """
+        await self.trie.batch_insert_from_file()
+
+    async def predict_words(self, prefix):
         """
         Predicts the next word based on the prefix provided.
         Input: prefix (str) - The prefix for which the next word needs to be predicted.
