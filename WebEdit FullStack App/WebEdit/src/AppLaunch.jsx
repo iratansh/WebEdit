@@ -17,7 +17,7 @@ export default function AppLaunch() {
       if (fileType === "text/plain") {
         const reader = new FileReader();
         reader.onload = (e) => {
-          setFileContent(e.target.result);
+          setFileContent(e.target.result.replace(/\n/g, '<br>'));
         };
         reader.readAsText(file);
       } else if (
@@ -54,7 +54,7 @@ export default function AppLaunch() {
     if (fileContent) {
       return <GoogleDoc content={fileContent} />;
     } else {
-      return <GoogleDoc />;
+      return <GoogleDoc content={""}/>;
     }
   }
 
