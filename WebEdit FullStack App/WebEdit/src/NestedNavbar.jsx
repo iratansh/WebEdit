@@ -85,7 +85,6 @@ const NestedNavbar = ({ handlePrint, contentEditableRef, DocumentContent }) => {
     const span = document.createElement("span");
 
     if (color === "none") {
-      // Find the parent element to restore the text without highlight
       const parentElement = range.startContainer.parentElement;
       if (
         parentElement.nodeName === "SPAN" &&
@@ -116,8 +115,6 @@ const NestedNavbar = ({ handlePrint, contentEditableRef, DocumentContent }) => {
     const file = fileInputRef.current?.files[0];
     if (file) {
       const { width, height } = imageDimensions;
-
-      // Check if dimensions are within the allowed limits
       if (width > 800 || height > 1024) {
         alert(
           "Image dimensions exceed the allowed limits. Width must be less than 800px and height must be less than 1024px."
@@ -135,7 +132,7 @@ const NestedNavbar = ({ handlePrint, contentEditableRef, DocumentContent }) => {
         img.style.position = "relative";
 
         const contentEditable = contentEditableRef.current;
-        contentEditable.focus(); 
+        contentEditable.focus();
 
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
@@ -222,16 +219,11 @@ const NestedNavbar = ({ handlePrint, contentEditableRef, DocumentContent }) => {
           node.childNodes.forEach(highlightTextNodes);
         }
       };
-
-      // Remove existing highlights
       removeHighlights(contentDiv);
-
-      // Highlight new search terms
       highlightTextNodes(contentDiv);
     }
   };
 
-  // Add the removeHighlights function for completeness
   const removeHighlights = (node) => {
     if (node.nodeType === Node.ELEMENT_NODE) {
       if (node.nodeName === "MARK") {
@@ -263,6 +255,20 @@ const NestedNavbar = ({ handlePrint, contentEditableRef, DocumentContent }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const handleBeforePrint = () => {
+    if (contentEditableRef.current) {
+      contentEditableRef.current.style.height = '100vh';
+      contentEditableRef.current.style.overflow = 'hidden';
+    }
+  };
+
+  const handleAfterPrint = () => {
+    if (contentEditableRef.current) {
+      contentEditableRef.current.style.height = '130vh';
+      contentEditableRef.current.style.overflow = 'none';
+    }
+  };
 
   return (
     <>
@@ -337,51 +343,56 @@ const NestedNavbar = ({ handlePrint, contentEditableRef, DocumentContent }) => {
                 onMouseLeave={hideAllTooltips}
                 onClick={handlePrint}
               >
-                <ReactToPrint
-                  trigger={() => (
-                    <button
-                      style={{
-                        border: "none",
-                        backgroundColor: "transparent",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <FaPrint style={iconStyle} />
-                    </button>
-                  )}
-                  content={() => contentEditableRef.current}
-                  pageStyle={`
-    @media print {
-      * {
-        box-shadow: none !important;
-        text-shadow: none !important;
-        background: transparent !important;
-        color: #000 !important;
-        -webkit-print-color-adjust: exact;
-      }
+                      <ReactToPrint
+        trigger={() => (
+          <button
+            style={{
+              border: "none",
+              backgroundColor: "transparent",
+              cursor: "pointer",
+            }}
+          >
+            <FaPrint style={iconStyle} />
+          </button>
+        )}
+        content={() => contentEditableRef.current}
+        onBeforeGetContent={handleBeforePrint}
+        onAfterPrint={handleAfterPrint}
+        pageStyle={`
+          @media print {
+            * {
+              box-shadow: none !important;
+              text-shadow: none !important;
+              background: transparent !important;
+              color: #000 !important;
+              -webkit-print-color-adjust: exact;
+            }
 
-      p {
-        orphans: 3;
-        widows: 3;
-      }
+            p {
+              orphans: 3;
+              widows: 3;
+            }
 
-      .content-editable-div {
-        height: auto;
-        max-height: 100vh; /* Limits the height to one page */
-        overflow: hidden; /* Hides overflow content */
-      }
+            .content-editable-div {
+              position: relative;
+              page-break-inside: avoid;
+            }
 
-      .content-editable-div > * {
-        margin: 0; /* Ensures no additional margins are added */
-      }
-    }
+            .content-editable-div > * {
+              margin: 0;
+            }
 
-    @page {
-      size: auto;
-      margin: 3cm;
-    }
-  `}
-                />
+            body {
+              margin: 0;
+            }
+
+            @page {
+              size: auto;
+              margin: 1cm;
+            }
+          }
+        `}
+      />
               </Nav.Link>
             </OverlayTrigger>
             <span>|</span>
