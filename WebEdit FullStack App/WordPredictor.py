@@ -2,7 +2,7 @@
 This module is responsible for finishing a partial word based on the prefix provided.
 """
 
-from Trie import Trie  
+from Trie import Trie
 
 class WordFinisher:
     def __init__(self):
