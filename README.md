@@ -41,8 +41,9 @@ This setup ensures that the application can handle extensive text data and provi
 <img width="1512" alt="image" src="https://github.com/iratansh/WebEdit/assets/151393106/becf5aee-425d-40c1-aba3-13d344734b67">
 <img width="1512" alt="image" src="https://github.com/iratansh/WebEdit/assets/151393106/157ec0a1-1fa9-4f1d-8445-fe3fe5f579a4">
 <img width="1512" alt="image" src="https://github.com/user-attachments/assets/146a340d-a324-45ce-a86c-177198af4cf0">
-<img width="1512" alt="image" src="https://github.com/user-attachments/assets/316db5ef-0688-4b05-8068-2915ef72ddee">
-<img width="1512" alt="image" src="https://github.com/user-attachments/assets/e7b74c03-ee67-4009-8685-0725f4c085a9">
+<img width="1512" alt="image" src="https://github.com/user-attachments/assets/4c4645b0-26ac-40f8-928e-42497133776f">
+<img width="1512" alt="image" src="https://github.com/user-attachments/assets/f11adebb-6003-448c-bc1f-ff51da1d1ff0">
+
 
 
 
