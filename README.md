@@ -1,7 +1,7 @@
 # WebEdit
 
 ### **Overview:**
-The application is a document editing tool with a React frontend and a FastAPI backend, designed to offer a comprehensive set of features for creating and editing documents. It integrates dynamic word prediction and various editing functionalities.
+The application is a single-page document editing tool with a React frontend and a FastAPI backend, designed to offer a comprehensive set of features for creating and editing documents. It integrates dynamic word prediction and various editing functionalities.
 
 ### **Frontend:**
 1. **React Application:**
