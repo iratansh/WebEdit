@@ -48,7 +48,6 @@ export default function NavigationBar({
   onStrikethroughClick,
   onSubscriptClick,
   onSuperscriptClick,
-
   onAlignLeftClick,
   onAlignCenterClick,
   onAlignRightClick,
@@ -66,6 +65,7 @@ export default function NavigationBar({
   ContentEditableRef,
   DocumentContent,
   setChangeToDarkMode,
+  setAutoComplete,
 }) {
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({
@@ -75,7 +75,8 @@ export default function NavigationBar({
 
   useEffect(() => {
     applyDarkModeStyles();
-  }, [settings.darkMode, DocumentContent, GoogleDocRef, ContentEditableRef]);
+    setAutoComplete(settings.autoComplete)
+  }, [settings.darkMode, settings.autoComplete, DocumentContent, GoogleDocRef, ContentEditableRef]);
 
   const applyDarkModeStyles = () => {
     if (DocumentContent && DocumentContent.current) {
@@ -105,6 +106,18 @@ export default function NavigationBar({
       darkMode: !prevSettings.darkMode,
     }));
   };
+
+  const handleToggleAutoComplete = () => {
+    setSettings((prevSettings) => {
+      const newAutoComplete = !prevSettings.autoComplete;
+      setAutoComplete(newAutoComplete);
+      return {
+        ...prevSettings,
+        autoComplete: newAutoComplete,
+      };
+    });
+  };
+
 
   const handleOpenSettings = () => setShowSettings(true);
   const handleCloseSettings = () => setShowSettings(false);
@@ -260,9 +273,11 @@ export default function NavigationBar({
         handleClose={handleCloseSettings}
         settings={settings}
         onChange={handleToggleDarkMode}
+        onToggleAutoComplete={handleToggleAutoComplete}
       />
     </>
   );
 }
+
 
 
