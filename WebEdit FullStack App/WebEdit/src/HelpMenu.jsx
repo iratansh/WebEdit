@@ -49,7 +49,7 @@ export default function HelpMenu({ handleContinue }) {
 
   const handleFeaturesClick = () => {
     setHelpText(
-      "WebEdit is a simple web-based document creation and editing tool. Key features include uploading, saving, word prediction, and text customization and formatting."
+      "WebEdit is a simple web-based document creation and editing tool. Key features include uploading (.docx or .txt), saving, word finishing, text customization and formatting. In addition, WebEdit has a feature to resize images and adjust their dimensions aswell as inputting code blocks. Fuerthermore, WebEdit has a feature to add tables to your document."
     );
   };
 
@@ -80,7 +80,7 @@ export default function HelpMenu({ handleContinue }) {
             <button className="side-button" onClick={handleFeaturesClick}>
               Features
             </button>
-            <button className="side-button">Open Settings</button>
+            <p style={{float:'left', fontSize:'15px', color:'whitesmoke', marginTop:'80px'}}> Created by Ishaan Ratanshi</p>
           </div>
           <div className="text-content">
             <div className="text-container">
@@ -97,3 +97,4 @@ export default function HelpMenu({ handleContinue }) {
     </div>
   );
 }
+
