@@ -37,7 +37,7 @@ The application is a single-page document editing tool with a React frontend and
 
 This setup ensures that the application can handle extensive text data and provides a responsive, feature-rich environment for document creation and editing, enhanced by a real-time word finsher and comprehensive formatting tools.
 
-
+DEMOSTRATION IMAGES:
 <img width="1512" alt="image" src="https://github.com/iratansh/WebEdit/assets/151393106/becf5aee-425d-40c1-aba3-13d344734b67">
 <img width="1512" alt="image" src="https://github.com/iratansh/WebEdit/assets/151393106/157ec0a1-1fa9-4f1d-8445-fe3fe5f579a4">
 <img width="1512" alt="image" src="https://github.com/user-attachments/assets/146a340d-a324-45ce-a86c-177198af4cf0">
