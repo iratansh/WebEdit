@@ -1,12 +1,17 @@
 import React from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 
-const Settings = ({ show, handleClose, settings, onChange }) => {
+const Settings = ({ show, handleClose, settings, onChange, onToggleAutoComplete }) => {
   const handleToggle = (setting) => {
-    onChange({
-      ...settings,
-      [setting]: !settings[setting],
-    });
+    if (setting === 'autoComplete') {
+        onToggleAutoComplete(); 
+    } else {
+        onChange({
+          ...settings,
+          [setting]: !settings[setting],
+        });
+      }
+    console.log(settings);
   };
 
   return (
@@ -47,6 +52,10 @@ const Settings = ({ show, handleClose, settings, onChange }) => {
 };
 
 export default Settings;
+
+
+
+
 
 
 
