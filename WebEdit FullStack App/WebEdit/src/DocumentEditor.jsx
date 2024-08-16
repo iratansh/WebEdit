@@ -6,7 +6,7 @@ import "./DocumentEditor.css";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-export default function GoogleDoc() {
+export default function GoogleDoc({ content }) {
   const [showHelp, setShowHelp] = useState(false);
   const [activeStyles, setActiveStyles] = useState({
     bold: false,
@@ -24,218 +24,354 @@ export default function GoogleDoc() {
     height: 0,
   });
 
+  const [autoComplete, setAutoComplete] = useState(true);
+  const [currentWord, setCurrentWord] = useState("");
+  const [suggestedWord, setSuggestedWord] = useState("");
   const [lastTabPosition, setLastTabPosition] = useState(null);
 
+  // Make it so that it will display the suggested word after the current word
   useEffect(() => {
-    const handleTabPress = (event) => {
-      if (event.key === "Tab") {
-        event.preventDefault();
-        if (
-          contentEditableRef.current &&
-          contentEditableRef.current.contains(document.activeElement)
-        ) {
-          const selection = window.getSelection();
-          if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const currentNode = range.startContainer;
-            const startOffset = range.startOffset;
+    const updateContent = () => {
+        if (!autoComplete) return;
+        const text = contentEditableRef.current.innerText;
+        const lastWord = text.split(" ").pop();
+        const newContent =
+            text.slice(0, text.length - lastWord.length) +
+            currentWord +
+            (suggestedWord ? `<span style="color: gray">${suggestedWord}</span>` : '');
 
-            if (currentNode.nodeType === Node.TEXT_NODE) {
-              const textContent = currentNode.textContent;
-              let wordBoundary = textContent.indexOf(" ", startOffset);
+        contentEditableRef.current.innerHTML = newContent;
 
-              if (wordBoundary === -1) {
-                wordBoundary = textContent.length;
-              }
+        // Restore the cursor position
+        const selection = window.getSelection();
+        const range = document.createRange();
+        let found = false;
 
-              const beforeCursor = textContent.slice(0, startOffset);
-              const afterCursor = textContent.slice(startOffset);
-
-              currentNode.textContent =
-                beforeCursor + "\u00A0\u00A0\u00A0\u00A0" + afterCursor;
-
-              range.setStart(currentNode, startOffset + 4);
-              range.setEnd(currentNode, startOffset + 4);
-              setLastTabPosition({ node: currentNode, startOffset, length: 4 });
-            } else {
-              const tabTextNode = document.createTextNode(
-                "\u00A0\u00A0\u00A0\u00A0"
-              ); 
-              range.insertNode(tabTextNode);
-              range.setStartAfter(tabTextNode);
-              range.collapse(true); 
-              setLastTabPosition({
-                node: tabTextNode,
-                startOffset: 0,
-                length: 4,
-              });
+        contentEditableRef.current.childNodes.forEach((node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                if (!found && node.nodeValue.includes(currentWord)) {
+                    range.setStart(node, node.nodeValue.length);
+                    found = true;
+                }
             }
+        });
+
+        if (!found) {
+            range.setStart(contentEditableRef.current, contentEditableRef.current.childNodes.length);
+        }
+
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    };
+
+    if (suggestedWord && !lastTabPosition) {
+        updateContent();
+    } else if (lastTabPosition) {
+        const text = contentEditableRef.current.innerText;
+        const lastWord = text.split(" ").pop();
+        const newContent = text.slice(0, text.length - lastWord.length) + currentWord;
+
+        contentEditableRef.current.innerHTML = newContent;
+
+        const range = document.createRange();
+        const sel = window.getSelection();
+        const childNodes = contentEditableRef.current.childNodes;
+
+        let found = false;
+
+        for (let i = 0; i < childNodes.length; i++) {
+            const node = childNodes[i];
+            if (node.nodeType === Node.TEXT_NODE) {
+                if (!found && node.nodeValue.includes(currentWord)) {
+                    range.setStart(node, node.nodeValue.length);
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found) {
+            range.setStart(contentEditableRef.current, contentEditableRef.current.childNodes.length);
+        }
+
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        setLastTabPosition(null);
+    }
+}, [suggestedWord, currentWord, lastTabPosition]);
+
+useEffect(() => {
+  const handleKeyPress = async (event) => {
+    if (!autoComplete) return;
+
+    const div = contentEditableRef.current;
+    const text = div.innerText;
+
+    if (event.key === " ") {
+        if (suggestedWord) {
+            event.preventDefault();
+            // Only add the current word followed by a space, without auto-completing the suggestion
+            const updatedContent = text.slice(0, text.lastIndexOf(currentWord)) + currentWord + " ";
+            div.innerText = updatedContent;
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.setStart(div.childNodes[0], div.innerText.length);
+            range.collapse(true);
             selection.removeAllRanges();
             selection.addRange(range);
-          }
+
+            // Reset the current word and suggested word
+            setCurrentWord("");
+            setSuggestedWord("");
+        } else {
+            setCurrentWord("");
+            setSuggestedWord("");
         }
-      }
+    } else if (event.key === "Backspace") {
+        const newWord = currentWord.slice(0, -1);
+        setCurrentWord(newWord);
+
+        if (newWord === "") {
+            setSuggestedWord("");
+        } else {
+            updateSuggestedWord(newWord);
+        }
+    } else if (event.key.length === 1 && /^[a-zA-Z]$/.test(event.key)) {
+        const newWord = currentWord + event.key;
+        setCurrentWord(newWord);
+
+        try {
+            const response = await fetch(
+                `http://127.0.0.1:5001/receive_word?word=${newWord}`
+            );
+            if (!response.ok) {
+                console.error(
+                    response.statusText
+                );
+                return;
+            }
+
+            const data = await response.json();
+            if (data.finished_word) {
+                const remainingWord = data.finished_word.slice(newWord.length);
+                setSuggestedWord(remainingWord);
+            } else {
+                setSuggestedWord("");
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    } else if (event.key === "Tab" && suggestedWord) {
+        event.preventDefault();
+
+        const sel = window.getSelection();
+        const range = sel.getRangeAt(0);
+        const textNode = document.createTextNode(suggestedWord);
+        range.insertNode(textNode);
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        setCurrentWord(currentWord + suggestedWord);
+        setSuggestedWord("");
+        setLastTabPosition(Date.now());
+    }
+};
+
+    const handleTabPress = (event) => {
+        if (event.key === "Tab" && !suggestedWord) {
+            event.preventDefault();
+            if (
+                contentEditableRef.current &&
+                contentEditableRef.current.contains(document.activeElement)
+            ) {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const currentNode = range.startContainer;
+                    const startOffset = range.startOffset;
+
+                    if (currentNode.nodeType === Node.TEXT_NODE) {
+                        const textContent = currentNode.textContent;
+                        let wordBoundary = textContent.indexOf(" ", startOffset);
+
+                        if (wordBoundary === -1) {
+                            wordBoundary = textContent.length;
+                        }
+
+                        const beforeCursor = textContent.slice(0, startOffset);
+                        const afterCursor = textContent.slice(startOffset);
+
+                        currentNode.textContent =
+                            beforeCursor + "\u00A0\u00A0\u00A0\u00A0" + afterCursor;
+
+                        range.setStart(currentNode, startOffset + 4);
+                        range.setEnd(currentNode, startOffset + 4);
+                        setLastTabPosition({ node: currentNode, startOffset, length: 4 });
+                    } else {
+                        const tabTextNode = document.createTextNode(
+                            "\u00A0\u00A0\u00A0\u00A0"
+                        );
+                        range.insertNode(tabTextNode);
+                        range.setStartAfter(tabTextNode);
+                        range.collapse(true);
+                        setLastTabPosition({
+                            node: tabTextNode,
+                            startOffset: 0,
+                            length: 4,
+                        });
+                    }
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+        }
+    };
+
+    const updateSuggestedWord = async (word) => {
+        try {
+            const response = await fetch(
+                `http://127.0.0.1:5001/receive_word?word=${word}`
+            );
+            if (!response.ok) {
+                console.error(response.statusText);
+                setSuggestedWord("");
+                return;
+            }
+
+            const data = await response.json();
+            if (data.finished_word) {
+                const remainingWord = data.finished_word.slice(word.length);
+                setSuggestedWord(remainingWord);
+            } else {
+                setSuggestedWord("");
+            }
+        } catch (error) {
+            console.error(error);
+            setSuggestedWord("");
+        }
     };
 
     const handleUndoPress = (event) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-      if (
-        (isMac && event.metaKey && event.key === "z") ||
-        (!isMac && event.ctrlKey && event.key === "z")
-      ) {
-        event.preventDefault();
-        document.execCommand("undo");
-      }
+        const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+        if (
+            (isMac && event.metaKey && event.key === "z") ||
+            (!isMac && event.ctrlKey && event.key === "z")
+        ) {
+            event.preventDefault();
+            document.execCommand("undo");
+        }
     };
 
     const handleEnterPress = (event) => {
-      if (event.key === "Enter") {
-        const maxHeight = 1024;
-        const contentDiv = contentEditableRef.current;
-        const tempSpan = document.createElement("span");
-        tempSpan.appendChild(document.createTextNode("\u200B"));
-        const selection = window.getSelection();
-        const range = selection.getRangeAt(0);
-        range.insertNode(tempSpan);
-        const tempRect = tempSpan.getBoundingClientRect();
-        const contentRect = contentDiv.getBoundingClientRect();
-        const cursorY =
-          tempRect.bottom - contentRect.top + contentDiv.scrollTop;
+        if (event.key === "Enter") {
+            const maxHeight = 1024;
+            const contentDiv = contentEditableRef.current;
+            const tempSpan = document.createElement("span");
+            tempSpan.appendChild(document.createTextNode("\u200B"));
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            range.insertNode(tempSpan);
+            const tempRect = tempSpan.getBoundingClientRect();
+            const contentRect = contentDiv.getBoundingClientRect();
+            const cursorY =
+                tempRect.bottom - contentRect.top + contentDiv.scrollTop;
 
-        tempSpan.remove();
+            tempSpan.remove();
 
-        if (cursorY >= maxHeight) {
-          event.preventDefault();
-        } else {
-          setTimeout(() => {
-            if (contentDiv.scrollHeight > maxHeight) {
-              const lastChild = contentDiv.lastChild;
-              if (
-                lastChild.nodeType === Node.ELEMENT_NODE &&
-                lastChild.tagName === "BR"
-              ) {
-                contentDiv.removeChild(lastChild);
-              }
+            if (cursorY >= maxHeight) {
+                event.preventDefault();
+            } else {
+                setTimeout(() => {
+                    if (contentDiv.scrollHeight > maxHeight) {
+                        const lastChild = contentDiv.lastChild;
+                        if (
+                            lastChild.nodeType === Node.ELEMENT_NODE &&
+                            lastChild.tagName === "BR"
+                        ) {
+                            contentDiv.removeChild(lastChild);
+                        }
+                    }
+                }, 0);
             }
-          }, 0);
         }
-      }
     };
 
-    const handleClickOutside = (event) => {
-      if (
-        !contentEditableRef.current.contains(event.target) &&
-        !DocumentContent.current.contains(event.target)
-      ) {
-        document
-          .querySelectorAll(".comment-box, .comment-area")
-          .forEach((element) => {
-            element.classList.remove("popped");
-          });
-      }
-    };
     const trimContent = (div) => {
-      const maxHeight = 1024; 
-      const originalContent = div.innerHTML;
-      const words = originalContent.split("");
-      let newContent = "";
-      let trimmedContent = "";
+        const maxCharacters = 5880;
+        let contentText = div.innerText;
 
-      for (let i = 0; i < words.length; i++) {
-        newContent += words[i];
-        div.innerHTML = newContent;
+        if (contentText.length > maxCharacters) {
+            const trimmedContent = contentText.slice(0, maxCharacters);
+            div.innerText = trimmedContent;
 
-        if (div.scrollHeight > maxHeight) {
-          trimmedContent = newContent.slice(0, -1);
-          break;
-        } else {
-          trimmedContent = newContent;
+            const selection = window.getSelection();
+            const newRange = document.createRange();
+            const lastChild = div.childNodes[div.childNodes.length - 1];
+            if (lastChild && lastChild.nodeType === Node.TEXT_NODE) {
+                newRange.setStart(lastChild, lastChild.textContent.length);
+            } else if (lastChild) {
+                newRange.setStartAfter(lastChild);
+            } else {
+                newRange.setStart(div, div.childNodes.length);
+            }
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
         }
-      }
-
-      div.innerHTML = trimmedContent;
-      const selection = window.getSelection();
-      const newRange = document.createRange();
-      if (div.childNodes.length > 0) {
-        const lastChild = div.childNodes[div.childNodes.length - 1];
-        if (lastChild.nodeType === Node.TEXT_NODE) {
-          newRange.setStart(lastChild, lastChild.textContent.length);
-        } else {
-          newRange.setStartAfter(lastChild);
-        }
-      } else {
-        newRange.setStart(div, 0);
-      }
-      newRange.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
     };
-    const handlePaste = (event) => {
-      event.preventDefault();
-      const text = (event.clipboardData || window.clipboardData).getData(
-        "text/plain"
-      );
-      document.execCommand("insertText", false, text);
 
-      setTimeout(() => {
-        const contentDiv = contentEditableRef.current;
-        if (contentDiv.scrollHeight > 1024) {
-          trimContent(contentDiv);
-        }
-      }, 0);
+    const handlePaste = (event) => {
+        event.preventDefault();
+        const text = (event.clipboardData || window.clipboardData).getData(
+            "text/plain"
+        );
+
+        document.execCommand("insertText", false, text);
+        requestAnimationFrame(() => {
+            const contentDiv = contentEditableRef.current;
+            trimContent(contentDiv);
+        });
     };
 
     const handleBackspacePress = (event) => {
-      if (event.key === "Backspace" || event.key === "Delete") {
-        if (lastTabPosition) {
-          const { node, startOffset, length } = lastTabPosition;
-          const selection = window.getSelection();
-          if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            if (
-              range.startContainer === node &&
-              range.startOffset === startOffset + length
-            ) {
-              event.preventDefault();
+        if (event.key === "Backspace" || event.key === "Delete") {
+            const newWord = currentWord.slice(0, -1);
+            setCurrentWord(newWord);
 
-              const textContent = node.textContent;
-              const beforeTab = textContent.slice(0, startOffset);
-              const afterTab = textContent.slice(startOffset + length);
-
-              node.textContent = beforeTab + afterTab;
-
-              range.setStart(node, startOffset);
-              range.setEnd(node, startOffset);
-
-              setLastTabPosition(null);
-              selection.removeAllRanges();
-              selection.addRange(range);
+            if (newWord === "") {
+                setSuggestedWord("");
+            } else {
+                updateSuggestedWord(newWord);
             }
-          }
         }
-      }
     };
 
     const contentEditable = contentEditableRef.current;
     if (contentEditable) {
-      contentEditable.addEventListener("keydown", handleTabPress);
-      contentEditable.addEventListener("keydown", handleEnterPress);
-      contentEditable.addEventListener("paste", handlePaste);
+        contentEditable.addEventListener("keydown", handleEnterPress);
+        contentEditable.addEventListener("paste", handlePaste);
+        contentEditable.addEventListener("keydown", handleKeyPress);
+        contentEditable.addEventListener("keydown", handleTabPress);
+        contentEditable.addEventListener("keydown", handleBackspacePress);
     }
     document.addEventListener("keydown", handleUndoPress);
-    document.addEventListener("keydown", handleBackspacePress);
-    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      if (contentEditable) {
-        contentEditable.removeEventListener("keydown", handleTabPress);
-      }
-      document.removeEventListener("keydown", handleUndoPress);
-      document.removeEventListener("keydown", handleBackspacePress);
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("paste", handlePaste);
+        if (contentEditable) {
+            contentEditable.removeEventListener("keydown", handleEnterPress);
+            contentEditable.removeEventListener("paste", handlePaste);
+            contentEditable.removeEventListener("keydown", handleKeyPress);
+            contentEditable.removeEventListener("keydown", handleTabPress);
+            contentEditable.removeEventListener("keydown", handleBackspacePress);
+        }
+        document.removeEventListener("keydown", handleUndoPress);
     };
-  }, [lastTabPosition]);
+}, [currentWord, suggestedWord]);
 
   const applyCommand = (command, value = null) => {
     if (contentEditableRef.current) {
@@ -375,10 +511,11 @@ export default function GoogleDoc() {
     }
 
     const estimatedRowHeight = 25; 
-    const estimatedColWidth = 100;
+    const estimatedColWidth = 100; 
     const tableHeight = rows * estimatedRowHeight;
     const tableWidth = cols * estimatedColWidth;
-    
+
+    // Check if the table dimensions exceed the maximum allowed dimensions
     if (tableHeight > maxHeight || tableWidth > maxWidth) {
       alert(
         `The table dimensions exceed the maximum allowed size.\nMax Height: ${maxHeight}px, Max Width: ${maxWidth}px.\nCurrent Height: ${tableHeight}px, Current Width: ${tableWidth}px.`
@@ -386,6 +523,7 @@ export default function GoogleDoc() {
       return;
     }
 
+    // Create table HTML string
     let table =
       "<table border='1' style='border-collapse: collapse; width: 100%;'>";
     for (let i = 0; i < rows; i++) {
@@ -398,16 +536,17 @@ export default function GoogleDoc() {
     }
     table += "</table>";
 
+    // Insert the table into the contentEditable div
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       range.deleteContents();
-
       const tempDiv = document.createElement("div");
       tempDiv.innerHTML = table;
       const tableNode = tempDiv.firstChild;
       range.insertNode(tableNode);
 
+      // Move the cursor to the end of the inserted table
       range.setStartAfter(tableNode);
       range.setEndAfter(tableNode);
       selection.removeAllRanges();
@@ -552,6 +691,7 @@ export default function GoogleDoc() {
       const range = selection.getRangeAt(0);
 
       if (selection.isCollapsed) {
+        // Insert a new code block
         const pre = document.createElement("pre");
         pre.className = darkMode
           ? "code-block dark-mode"
@@ -563,14 +703,15 @@ export default function GoogleDoc() {
 
         const code = document.createElement("code");
         pre.appendChild(code);
+
         range.insertNode(pre);
 
+        // Move cursor inside the new code block
         const newRange = document.createRange();
         newRange.setStart(code, 0);
         newRange.collapse(true);
         selection.removeAllRanges();
         selection.addRange(newRange);
-
         contentEditableRef.current.focus();
       } else {
         applyCommand("formatBlock", "pre");
@@ -578,52 +719,79 @@ export default function GoogleDoc() {
     }
   };
 
-  const [currentWord, setCurrentWord] = useState("");
-  const [suggestedWord, setSuggestedWord] = useState("");
-  useEffect(() => {
-    const handleKeyPress = async (event) => {
-      if (event.key === " ") {
-        setCurrentWord("");
-        setSuggestedWord("");
-      } else if (event.key === "Backspace") {
-        setCurrentWord((prev) => prev.slice(0, -1));
-        setSuggestedWord("");
-      } else if (event.key.length === 1 && /^[a-zA-Z]$/.test(event.key)) {
-        const newWord = currentWord + event.key;
-        setCurrentWord(newWord);
+  const trimContentForUploadedFile = (div) => {
+    const maxCharacters = 5800;
+    let contentText = div.textContent;
 
-        try {
-          const response = await fetch(
-            `http://127.0.0.1:5001/receive_word?word=${newWord}`
-          );
-          if (!response.ok) {
-            console.error("Network response was not ok:", response.statusText);
-            return;
-          }
+    if (contentText.length > maxCharacters) {
+      let charCount = 0;
+      let trimmedHtml = "";
 
-          const data = await response.json();
-          console.log("Backend response:", data);
-          if (data.finished_word) {
-            const remainingWord = data.finished_word.slice(newWord.length);
-            setSuggestedWord(remainingWord);
+      for (let node of div.childNodes) {
+        if (charCount + node.textContent.length > maxCharacters) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            trimmedHtml += node.textContent.slice(0, maxCharacters - charCount);
+          } else {
+            const clone = node.cloneNode(true);
+            let nodeTextContent = node.textContent;
+
+            if (charCount + nodeTextContent.length > maxCharacters) {
+              let remainingChars = maxCharacters - charCount;
+              const trimNodeContent = (childNode, charsLeft) => {
+                if (charsLeft <= 0) return "";
+
+                if (childNode.nodeType === Node.TEXT_NODE) {
+                  return childNode.textContent.slice(0, charsLeft);
+                } else {
+                  let trimmedChildHtml = "";
+                  for (let child of childNode.childNodes) {
+                    if (charsLeft <= 0) break;
+                    trimmedChildHtml += trimNodeContent(child, charsLeft);
+                    charsLeft -= child.textContent.length;
+                  }
+                  const clone = childNode.cloneNode(false);
+                  clone.innerHTML = trimmedChildHtml;
+                  return clone.outerHTML;
+                }
+              };
+
+              const trimmedNodeHtml = trimNodeContent(node, remainingChars);
+              clone.innerHTML = trimmedNodeHtml;
+            }
+            trimmedHtml += clone.outerHTML;
           }
-        } catch (error) {
-          console.error("Fetch error:", error);
+          break;
+        } else {
+          trimmedHtml += node.outerHTML || node.textContent;
+          charCount += node.textContent.length;
         }
-      } else if (event.key === "q" && suggestedWord) {
-        event.preventDefault();
-        document.execCommand("insertText", false, suggestedWord);
-        setCurrentWord("");
-        setSuggestedWord("");
       }
-    };
 
+      div.innerHTML = trimmedHtml;
+
+      const selection = window.getSelection();
+      const newRange = document.createRange();
+      const lastChild = div.childNodes[div.childNodes.length - 1];
+      if (lastChild.nodeType === Node.TEXT_NODE) {
+        newRange.setStart(lastChild, lastChild.textContent.length);
+      } else {
+        newRange.setStartAfter(lastChild);
+      }
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
+  };
+
+  useEffect(() => {
     const div = contentEditableRef.current;
-    div.addEventListener("keydown", handleKeyPress);
-    return () => {
-      div.removeEventListener("keydown", handleKeyPress);
-    };
-  }, [currentWord, suggestedWord]);
+    div.innerHTML = content;
+    if (content) {
+      requestAnimationFrame(() => {
+        trimContentForUploadedFile(div);
+      });
+    }
+  }, [content]);
 
   return (
     <>
@@ -653,6 +821,7 @@ export default function GoogleDoc() {
           DocumentContent={DocumentContent}
           GoogleDocRef={GoogleDocRef}
           setChangeToDarkMode={setChangeToDarkMode}
+          setAutoComplete={setAutoComplete}
           onTitleChange={handleTitleChange}
           onNewDocument={handleNewDocument}
           onUploadClick={handleUploadClick}
@@ -707,7 +876,7 @@ export default function GoogleDoc() {
               contentEditable
               style={{
                 padding: "20px",
-                color: changeToDarkMode === "true" ? "white" : "black",
+                color: "black",
                 backgroundColor: "none",
                 fontSize: "16px",
                 fontFamily: "Arial, sans-serif",
@@ -717,9 +886,8 @@ export default function GoogleDoc() {
                 height: "1020px",
                 maxHeight: "1020px",
               }}
-            >
-              <span style={{ color: "gray" }}>{suggestedWord}</span>
-            </div>
+              className="file-display"
+            ></div>
           </div>
           <div className="comment-section">
             {comments.map((comment, index) => (
@@ -728,16 +896,34 @@ export default function GoogleDoc() {
                 className="comment-box"
                 style={{
                   marginTop: index === 0 ? "60px" : "10px",
-                  border: "1px solid black",
-                  padding: "5px",
+                  border: "1px solid #d8d8d8",
+                  borderRadius: "8px",
+                  backgroundColor: "#ffffff",
+                  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                  transition:
+                    "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out",
+                  cursor: "pointer",
+                  padding: "12px",
+                  maxWidth: "500px",
                 }}
                 onClick={handleElementClick}
               >
-                <p style={{ fontSize: "14px" }}>{comment.date}</p>
+                <p style={{ fontSize: "14px", margin: "0", color: "#70757a" }}>
+                  {comment.date}
+                </p>
                 <div className="button-container">
                   {editingCommentId === comment.id ? (
                     <>
+                      <div className="buttons-wrapper">
+                        <button
+                          className="comment-buttons"
+                          onClick={handleCommentBoxClose}
+                        >
+                          Close
+                        </button>
+                      </div>
                       <textarea
+                        className="comment-textarea"
                         value={comment.text}
                         onChange={(e) =>
                           setComments((prevComments) =>
@@ -749,27 +935,23 @@ export default function GoogleDoc() {
                           )
                         }
                       />
-                      <button
-                        className="comment-buttons"
-                        onClick={handleCommentBoxClose}
-                      >
-                        Close
-                      </button>
                     </>
                   ) : (
                     <>
-                      <button
-                        className="comment-buttons"
-                        onClick={() => handleDeleteComment(comment.id)}
-                      >
-                        ✔
-                      </button>
-                      <button
-                        className="comment-buttons"
-                        onClick={() => handleEditComment(comment.id)}
-                      >
-                        Edit
-                      </button>
+                      <div className="buttons-wrapper">
+                        <button
+                          className="comment-buttons"
+                          onClick={() => handleDeleteComment(comment.id)}
+                        >
+                          ✔
+                        </button>
+                        <button
+                          className="comment-buttons"
+                          onClick={() => handleEditComment(comment.id)}
+                        >
+                          Edit
+                        </button>
+                      </div>
                       <div
                         className="comment-area"
                         onClick={handleElementClick}
@@ -825,5 +1007,6 @@ export default function GoogleDoc() {
     </>
   );
 }
+
 
 
