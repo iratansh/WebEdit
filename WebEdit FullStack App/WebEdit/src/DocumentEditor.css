@@ -12,7 +12,6 @@
   color: gray;
 }
 
-
 .document-content {
   flex: 1;
   margin: 20px auto;
@@ -202,5 +201,7 @@ pre {
 .file-display span {
   color: gray;
 }
+
+
   
   
