@@ -29,142 +29,159 @@ export default function GoogleDoc({ content }) {
   const [suggestedWord, setSuggestedWord] = useState("");
   const [lastTabPosition, setLastTabPosition] = useState(null);
 
-  // Make it so that it will display the suggested word after the current word
+  // Make it so that it will paste the suggested word after the current word
+  // when the user presses tab
   useEffect(() => {
     const updateContent = () => {
-        if (!autoComplete) return;
-        const text = contentEditableRef.current.innerText;
-        const lastWord = text.split(" ").pop();
-        const newContent =
-            text.slice(0, text.length - lastWord.length) +
-            currentWord +
-            (suggestedWord ? `<span style="color: gray">${suggestedWord}</span>` : '');
+      if (!autoComplete) return; // Don't update the content if auto complete is off
+      const text = contentEditableRef.current.innerText;
+      const lastWord = text.split(" ").pop();
+      const newContent =
+        text.slice(0, text.length - lastWord.length) +
+        currentWord +
+        (suggestedWord
+          ? `<span style="color: gray">${suggestedWord}</span>` // Add the suggested word
+          : "");
 
-        contentEditableRef.current.innerHTML = newContent;
+      contentEditableRef.current.innerHTML = newContent;
 
-        // Restore the cursor position
-        const selection = window.getSelection();
-        const range = document.createRange();
-        let found = false;
+      // Restore the cursor position
+      const selection = window.getSelection();
+      const range = document.createRange();
+      let found = false;
 
-        contentEditableRef.current.childNodes.forEach((node) => {
-            if (node.nodeType === Node.TEXT_NODE) {
-                if (!found && node.nodeValue.includes(currentWord)) {
-                    range.setStart(node, node.nodeValue.length);
-                    found = true;
-                }
-            }
-        });
-
-        if (!found) {
-            range.setStart(contentEditableRef.current, contentEditableRef.current.childNodes.length);
+      contentEditableRef.current.childNodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          if (!found && node.nodeValue.includes(currentWord)) {
+            range.setStart(node, node.nodeValue.length);
+            found = true;
+          }
         }
+      });
 
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+      if (!found) {
+        range.setStart(
+          contentEditableRef.current,
+          contentEditableRef.current.childNodes.length
+        );
+      }
+
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
     };
 
     if (suggestedWord && !lastTabPosition) {
-        updateContent();
+      updateContent(); // Update the content with the suggested word
     } else if (lastTabPosition) {
-        const text = contentEditableRef.current.innerText;
-        const lastWord = text.split(" ").pop();
-        const newContent = text.slice(0, text.length - lastWord.length) + currentWord;
+      const text = contentEditableRef.current.innerText;
+      const lastWord = text.split(" ").pop();
+      const newContent =
+        text.slice(0, text.length - lastWord.length) + currentWord;
 
-        contentEditableRef.current.innerHTML = newContent;
+      contentEditableRef.current.innerHTML = newContent;
 
-        const range = document.createRange();
-        const sel = window.getSelection();
-        const childNodes = contentEditableRef.current.childNodes;
+      const range = document.createRange();
+      const sel = window.getSelection();
+      const childNodes = contentEditableRef.current.childNodes;
 
-        let found = false;
+      let found = false;
 
-        for (let i = 0; i < childNodes.length; i++) {
-            const node = childNodes[i];
-            if (node.nodeType === Node.TEXT_NODE) {
-                if (!found && node.nodeValue.includes(currentWord)) {
-                    range.setStart(node, node.nodeValue.length);
-                    found = true;
-                    break;
-                }
-            }
+      for (let i = 0; i < childNodes.length; i++) {
+        const node = childNodes[i];
+        if (node.nodeType === Node.TEXT_NODE) {
+          if (!found && node.nodeValue.includes(currentWord)) {
+            range.setStart(node, node.nodeValue.length);
+            found = true;
+            break;
+          }
         }
+      }
 
-        if (!found) {
-            range.setStart(contentEditableRef.current, contentEditableRef.current.childNodes.length);
-        }
+      if (!found) {
+        range.setStart(
+          contentEditableRef.current,
+          contentEditableRef.current.childNodes.length
+        );
+      }
 
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
 
-        setLastTabPosition(null);
+      setLastTabPosition(null);
     }
-}, [suggestedWord, currentWord, lastTabPosition]);
+  }, [suggestedWord, currentWord, lastTabPosition]);
 
-useEffect(() => {
-  const handleKeyPress = async (event) => {
-    if (!autoComplete) return;
+  useEffect(() => {
+    const handleKeyPress = async (event) => {
+      if (!autoComplete) return;
 
-    const div = contentEditableRef.current;
-    const text = div.innerText;
+      const div = contentEditableRef.current;
+      const text = div.innerText;
 
-    if (event.key === " ") {
+      if (event.key === " ") {
         if (suggestedWord) {
-            event.preventDefault();
-            // Only add the current word followed by a space, without auto-completing the suggestion
-            const updatedContent = text.slice(0, text.lastIndexOf(currentWord)) + currentWord + " ";
-            div.innerText = updatedContent;
-            const selection = window.getSelection();
-            const range = document.createRange();
-            range.setStart(div.childNodes[0], div.innerText.length);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
+          event.preventDefault();
+          // Only add the current word followed by a space, without auto-completing the suggestion
+          const updatedContent =
+            text.slice(0, text.lastIndexOf(currentWord)) + currentWord + " ";
+          div.innerText = updatedContent;
 
-            // Reset the current word and suggested word
-            setCurrentWord("");
-            setSuggestedWord("");
+          // Move cursor to the end of the current text
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.setStart(div.childNodes[0], div.innerText.length);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+
+          // Reset the current word and suggested word
+          setCurrentWord("");
+          setSuggestedWord("");
         } else {
-            setCurrentWord("");
-            setSuggestedWord("");
+          // No suggestion; just proceed as normal with adding a space
+          setCurrentWord("");
+          setSuggestedWord("");
         }
-    } else if (event.key === "Backspace") {
-        const newWord = currentWord.slice(0, -1);
+      } else if (event.key === "Backspace") {
+        // Remove the last character from the current word and update the suggested word
+        const newWord = currentWord.slice(0, -1).trim();
         setCurrentWord(newWord);
-
+        console.log(newWord, "newWord");
         if (newWord === "") {
-            setSuggestedWord("");
+          // If the current word is empty, reset the suggested word
+          console.log(newWord);
+          setSuggestedWord("");
         } else {
-            updateSuggestedWord(newWord);
+          // If the current word is not empty, update the suggested word
+          updateSuggestedWord(newWord);
         }
-    } else if (event.key.length === 1 && /^[a-zA-Z]$/.test(event.key)) {
+      } else if (event.key.length === 1 && /^[a-zA-Z]$/.test(event.key)) {
+        // Add the new character to the current word and update the suggested word
         const newWord = currentWord + event.key;
         setCurrentWord(newWord);
 
         try {
-            const response = await fetch(
-                `http://127.0.0.1:5001/receive_word?word=${newWord}`
-            );
-            if (!response.ok) {
-                console.error(
-                    response.statusText
-                );
-                return;
-            }
+          const response = await fetch(
+            `http://127.0.0.1:5001/receive_word?word=${newWord}`
+          );
+          if (!response.ok) {
+            console.error(response.statusText);
+            return;
+          }
 
-            const data = await response.json();
-            if (data.finished_word) {
-                const remainingWord = data.finished_word.slice(newWord.length);
-                setSuggestedWord(remainingWord);
-            } else {
-                setSuggestedWord("");
-            }
+          const data = await response.json();
+          if (data.finished_word) {
+            const remainingWord = data.finished_word.slice(newWord.length);
+            setSuggestedWord(remainingWord);
+          } else {
+            setSuggestedWord("");
+          }
         } catch (error) {
-            console.error(error);
+          console.error(error);
         }
-    } else if (event.key === "Tab" && suggestedWord) {
+      } else if (event.key === "Tab" && suggestedWord) {
         event.preventDefault();
 
         const sel = window.getSelection();
@@ -179,199 +196,193 @@ useEffect(() => {
         setCurrentWord(currentWord + suggestedWord);
         setSuggestedWord("");
         setLastTabPosition(Date.now());
-    }
-};
+      }
+    };
 
     const handleTabPress = (event) => {
-        if (event.key === "Tab" && !suggestedWord) {
-            event.preventDefault();
-            if (
-                contentEditableRef.current &&
-                contentEditableRef.current.contains(document.activeElement)
-            ) {
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                    const range = selection.getRangeAt(0);
-                    const currentNode = range.startContainer;
-                    const startOffset = range.startOffset;
+      // Add a tab character to the current word
+      if (event.key === "Tab" && !suggestedWord) {
+        event.preventDefault();
+        if (
+          contentEditableRef.current &&
+          contentEditableRef.current.contains(document.activeElement)
+        ) {
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const currentNode = range.startContainer;
+            const startOffset = range.startOffset;
 
-                    if (currentNode.nodeType === Node.TEXT_NODE) {
-                        const textContent = currentNode.textContent;
-                        let wordBoundary = textContent.indexOf(" ", startOffset);
+            if (currentNode.nodeType === Node.TEXT_NODE) {
+              const textContent = currentNode.textContent;
+              let wordBoundary = textContent.indexOf(" ", startOffset);
 
-                        if (wordBoundary === -1) {
-                            wordBoundary = textContent.length;
-                        }
+              if (wordBoundary === -1) {
+                wordBoundary = textContent.length;
+              }
 
-                        const beforeCursor = textContent.slice(0, startOffset);
-                        const afterCursor = textContent.slice(startOffset);
+              const beforeCursor = textContent.slice(0, startOffset);
+              const afterCursor = textContent.slice(startOffset);
 
-                        currentNode.textContent =
-                            beforeCursor + "\u00A0\u00A0\u00A0\u00A0" + afterCursor;
+              currentNode.textContent =
+                beforeCursor + "\u00A0\u00A0\u00A0\u00A0" + afterCursor;
 
-                        range.setStart(currentNode, startOffset + 4);
-                        range.setEnd(currentNode, startOffset + 4);
-                        setLastTabPosition({ node: currentNode, startOffset, length: 4 });
-                    } else {
-                        const tabTextNode = document.createTextNode(
-                            "\u00A0\u00A0\u00A0\u00A0"
-                        );
-                        range.insertNode(tabTextNode);
-                        range.setStartAfter(tabTextNode);
-                        range.collapse(true);
-                        setLastTabPosition({
-                            node: tabTextNode,
-                            startOffset: 0,
-                            length: 4,
-                        });
-                    }
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                }
+              range.setStart(currentNode, startOffset + 4);
+              range.setEnd(currentNode, startOffset + 4);
+              setLastTabPosition({ node: currentNode, startOffset, length: 4 });
+            } else {
+              const tabTextNode = document.createTextNode(
+                "\u00A0\u00A0\u00A0\u00A0"
+              );
+              range.insertNode(tabTextNode);
+              range.setStartAfter(tabTextNode);
+              range.collapse(true);
+              setLastTabPosition({
+                node: tabTextNode,
+                startOffset: 0,
+                length: 4,
+              });
             }
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
         }
+      }
     };
 
     const updateSuggestedWord = async (word) => {
-        try {
-            const response = await fetch(
-                `http://127.0.0.1:5001/receive_word?word=${word}`
-            );
-            if (!response.ok) {
-                console.error(response.statusText);
-                setSuggestedWord("");
-                return;
-            }
-
-            const data = await response.json();
-            if (data.finished_word) {
-                const remainingWord = data.finished_word.slice(word.length);
-                setSuggestedWord(remainingWord);
-            } else {
-                setSuggestedWord("");
-            }
-        } catch (error) {
-            console.error(error);
-            setSuggestedWord("");
+      // Update the suggested word
+      if (word === "") {
+        setSuggestedWord("");
+      }
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:5001/receive_word?word=${word}`
+        );
+        if (!response.ok) {
+          console.error(response.statusText);
+          setSuggestedWord("");
+          return;
         }
+
+        const data = await response.json();
+        if (data.finished_word) {
+          const remainingWord = data.finished_word.slice(word.length);
+          setSuggestedWord(remainingWord);
+        } else {
+          setSuggestedWord("");
+        }
+      } catch (error) {
+        console.error(error);
+        setSuggestedWord("");
+      }
     };
 
     const handleUndoPress = (event) => {
-        const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-        if (
-            (isMac && event.metaKey && event.key === "z") ||
-            (!isMac && event.ctrlKey && event.key === "z")
-        ) {
-            event.preventDefault();
-            document.execCommand("undo");
-        }
+      // Undo the last action
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      if (
+        (isMac && event.metaKey && event.key === "z") ||
+        (!isMac && event.ctrlKey && event.key === "z")
+      ) {
+        event.preventDefault();
+        document.execCommand("undo");
+      }
     };
 
     const handleEnterPress = (event) => {
-        if (event.key === "Enter") {
-            const maxHeight = 1024;
-            const contentDiv = contentEditableRef.current;
-            const tempSpan = document.createElement("span");
-            tempSpan.appendChild(document.createTextNode("\u200B"));
-            const selection = window.getSelection();
-            const range = selection.getRangeAt(0);
-            range.insertNode(tempSpan);
-            const tempRect = tempSpan.getBoundingClientRect();
-            const contentRect = contentDiv.getBoundingClientRect();
-            const cursorY =
-                tempRect.bottom - contentRect.top + contentDiv.scrollTop;
+      // Add a line break if the content exceeds the maximum height
+      if (event.key === "Enter") {
+        const maxHeight = 1024;
+        const contentDiv = contentEditableRef.current;
+        const tempSpan = document.createElement("span");
+        tempSpan.appendChild(document.createTextNode("\u200B"));
+        const selection = window.getSelection();
+        const range = selection.getRangeAt(0);
+        range.insertNode(tempSpan);
+        const tempRect = tempSpan.getBoundingClientRect();
+        const contentRect = contentDiv.getBoundingClientRect();
+        const cursorY =
+          tempRect.bottom - contentRect.top + contentDiv.scrollTop;
 
-            tempSpan.remove();
+        tempSpan.remove();
 
-            if (cursorY >= maxHeight) {
-                event.preventDefault();
-            } else {
-                setTimeout(() => {
-                    if (contentDiv.scrollHeight > maxHeight) {
-                        const lastChild = contentDiv.lastChild;
-                        if (
-                            lastChild.nodeType === Node.ELEMENT_NODE &&
-                            lastChild.tagName === "BR"
-                        ) {
-                            contentDiv.removeChild(lastChild);
-                        }
-                    }
-                }, 0);
+        if (cursorY >= maxHeight) {
+          event.preventDefault();
+        } else {
+          setTimeout(() => {
+            if (contentDiv.scrollHeight > maxHeight) {
+              const lastChild = contentDiv.lastChild;
+              if (
+                lastChild.nodeType === Node.ELEMENT_NODE &&
+                lastChild.tagName === "BR"
+              ) {
+                contentDiv.removeChild(lastChild);
+              }
             }
+          }, 0);
         }
+      }
     };
 
     const trimContent = (div) => {
-        const maxCharacters = 5880;
-        let contentText = div.innerText;
+      // Trim the content if it exceeds the maximum characters
+      const maxCharacters = 5880;
+      let contentText = div.innerText;
 
-        if (contentText.length > maxCharacters) {
-            const trimmedContent = contentText.slice(0, maxCharacters);
-            div.innerText = trimmedContent;
+      if (contentText.length > maxCharacters) {
+        const trimmedContent = contentText.slice(0, maxCharacters);
+        div.innerText = trimmedContent;
 
-            const selection = window.getSelection();
-            const newRange = document.createRange();
-            const lastChild = div.childNodes[div.childNodes.length - 1];
-            if (lastChild && lastChild.nodeType === Node.TEXT_NODE) {
-                newRange.setStart(lastChild, lastChild.textContent.length);
-            } else if (lastChild) {
-                newRange.setStartAfter(lastChild);
-            } else {
-                newRange.setStart(div, div.childNodes.length);
-            }
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
+        const selection = window.getSelection();
+        const newRange = document.createRange();
+        const lastChild = div.childNodes[div.childNodes.length - 1];
+        if (lastChild && lastChild.nodeType === Node.TEXT_NODE) {
+          newRange.setStart(lastChild, lastChild.textContent.length);
+        } else if (lastChild) {
+          newRange.setStartAfter(lastChild);
+        } else {
+          newRange.setStart(div, div.childNodes.length);
         }
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
     };
 
     const handlePaste = (event) => {
-        event.preventDefault();
-        const text = (event.clipboardData || window.clipboardData).getData(
-            "text/plain"
-        );
+      // Handle pasting text
+      event.preventDefault();
+      const text = (event.clipboardData || window.clipboardData).getData(
+        "text/plain"
+      );
 
-        document.execCommand("insertText", false, text);
-        requestAnimationFrame(() => {
-            const contentDiv = contentEditableRef.current;
-            trimContent(contentDiv);
-        });
-    };
-
-    const handleBackspacePress = (event) => {
-        if (event.key === "Backspace" || event.key === "Delete") {
-            const newWord = currentWord.slice(0, -1);
-            setCurrentWord(newWord);
-
-            if (newWord === "") {
-                setSuggestedWord("");
-            } else {
-                updateSuggestedWord(newWord);
-            }
-        }
+      document.execCommand("insertText", false, text);
+      requestAnimationFrame(() => {
+        const contentDiv = contentEditableRef.current;
+        trimContent(contentDiv);
+      });
     };
 
     const contentEditable = contentEditableRef.current;
     if (contentEditable) {
-        contentEditable.addEventListener("keydown", handleEnterPress);
-        contentEditable.addEventListener("paste", handlePaste);
-        contentEditable.addEventListener("keydown", handleKeyPress);
-        contentEditable.addEventListener("keydown", handleTabPress);
-        contentEditable.addEventListener("keydown", handleBackspacePress);
+      contentEditable.addEventListener("keydown", handleEnterPress);
+      contentEditable.addEventListener("paste", handlePaste);
+      contentEditable.addEventListener("keydown", handleKeyPress);
+      contentEditable.addEventListener("keydown", handleTabPress);
     }
     document.addEventListener("keydown", handleUndoPress);
 
     return () => {
-        if (contentEditable) {
-            contentEditable.removeEventListener("keydown", handleEnterPress);
-            contentEditable.removeEventListener("paste", handlePaste);
-            contentEditable.removeEventListener("keydown", handleKeyPress);
-            contentEditable.removeEventListener("keydown", handleTabPress);
-            contentEditable.removeEventListener("keydown", handleBackspacePress);
-        }
-        document.removeEventListener("keydown", handleUndoPress);
+      if (contentEditable) {
+        contentEditable.removeEventListener("keydown", handleEnterPress);
+        contentEditable.removeEventListener("paste", handlePaste);
+        contentEditable.removeEventListener("keydown", handleKeyPress);
+        contentEditable.removeEventListener("keydown", handleTabPress);
+      }
+      document.removeEventListener("keydown", handleUndoPress);
     };
-}, [currentWord, suggestedWord]);
+  }, [currentWord, suggestedWord]);
 
   const applyCommand = (command, value = null) => {
     if (contentEditableRef.current) {
@@ -500,18 +511,22 @@ useEffect(() => {
   };
 
   const handleInsertTable = () => {
-    const maxHeight = 1024; 
-    const maxWidth = 800; 
+    const maxHeight = 1024; // Maximum height in pixels
+    const maxWidth = 800; // Maximum width in pixels
+
+    // Prompt user for number of rows and columns
     const rows = parseInt(prompt("Enter number of rows:"), 10);
     const cols = parseInt(prompt("Enter number of columns:"), 10);
 
+    // Validate input: Check if rows and cols are positive integers
     if (isNaN(rows) || rows <= 0 || isNaN(cols) || cols <= 0) {
       alert("Please enter valid positive numbers for rows and columns.");
       return;
     }
 
-    const estimatedRowHeight = 25; 
-    const estimatedColWidth = 100; 
+    // Calculate approximate height and width of the table
+    const estimatedRowHeight = 25; // Approximate height of each row in pixels
+    const estimatedColWidth = 100; // Approximate width of each column in pixels
     const tableHeight = rows * estimatedRowHeight;
     const tableWidth = cols * estimatedColWidth;
 
@@ -551,7 +566,6 @@ useEffect(() => {
       range.setEndAfter(tableNode);
       selection.removeAllRanges();
       selection.addRange(range);
-
       contentEditableRef.current.focus();
     } else {
       alert("Please place the cursor where you want to insert the table.");
@@ -699,7 +713,7 @@ useEffect(() => {
         pre.style.border = "1px solid #ccc";
         pre.style.borderRadius = "4px";
         pre.style.padding = "10px";
-        pre.style.whiteSpace = "pre-wrap"; 
+        pre.style.whiteSpace = "pre-wrap";
 
         const code = document.createElement("code");
         pre.appendChild(code);
