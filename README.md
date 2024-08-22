@@ -35,6 +35,14 @@ The application is a single-page document editing tool with a React frontend and
      - **Error Handling:**
        - Manages exceptions related to file reading and Trie operations.
 
+### **locustfile.py** ###
+This Python script uses Locust to perform load testing on a web application called WebEdit. It simulates user interactions by emulating actions such as typing words, pressing space, tab, and backspace keys, and handling word suggestions. The script also defines a staged load test scenario where the number of simulated users and their spawning rate increases over time, allowing for the performance and scalability of the web application to be assessed under varying levels of traffic.
+
+Key Technologies Used
+- Locust: A load testing tool for web applications.
+- HTTP Requests: Simulated user actions involve sending GET and POST requests to the server.
+- Python: The script is written in Python, leveraging classes and functions to structure the load testing logic.
+
 This setup ensures that the application can handle extensive text data and provides a responsive, feature-rich environment for document creation and editing, enhanced by a real-time word finsher and comprehensive formatting tools.
 
 **DEMOSTRATION IMAGES:**
